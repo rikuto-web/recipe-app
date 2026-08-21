@@ -28,6 +28,7 @@ flowchart TB
 | 層 | 技術 | 責務 |
 | --- | --- | --- |
 | フロントエンド | TanStack Start / TypeScript | UI、ルーティング、クライアント側バリデーション、API 呼び出し |
+| UI | Tailwind CSS / shadcn/ui | Pattern A のスタイル、Dialog・Toast 等（[UI デザイン](08-ui-design.md)） |
 | バックエンド | Rust / Axum | REST API、サーバー側バリデーション、トランザクション、CORS |
 | データベース | SQLite | 永続化 |
 
