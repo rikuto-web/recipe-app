@@ -1,7 +1,7 @@
 //! VS-00: 開発オリジン `http://localhost:5173` への CORS 許可を検証する。
 
 use axum::body::Body;
-use axum::http::{header, Method, Request, StatusCode};
+use axum::http::{Method, Request, StatusCode, header};
 use recipe_backend::test_utils::test_app;
 use tower::ServiceExt;
 

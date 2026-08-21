@@ -17,8 +17,8 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Result<Self, String> {
-        let database_url = env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "sqlite:../data/recipe.db".to_string());
+        let database_url =
+            env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:../data/recipe.db".to_string());
         let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
         let port = match env::var("PORT") {
             Ok(value) => value.parse::<u16>().map_err(|_| {

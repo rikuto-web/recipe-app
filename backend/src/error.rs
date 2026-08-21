@@ -11,9 +11,9 @@
 //! ```
 
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -31,7 +31,7 @@ pub struct ErrorDetail {
     pub details: Option<Vec<FieldError>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FieldError {
     pub field: String,
     pub message: String,
@@ -39,11 +39,26 @@ pub struct FieldError {
 
 #[derive(Debug, Error)]
 pub enum AppError {
+    #[error("validation error")]
+    Validation {
+        message: String,
+        details: Vec<FieldError>,
+    },
     #[error("internal server error")]
     Internal(#[from] sqlx::Error),
 }
 
 impl AppError {
+    pub fn validation(field: &str, message: &str) -> Self {
+        Self::Validation {
+            message: "入力内容に誤りがあります".to_string(),
+            details: vec![FieldError {
+                field: field.to_string(),
+                message: message.to_string(),
+            }],
+        }
+    }
+
     pub fn internal_server_error() -> Self {
         Self::Internal(sqlx::Error::RowNotFound)
     }
@@ -51,11 +66,18 @@ impl AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let (status, code, message) = match &self {
+        let (status, code, message, details) = match &self {
+            AppError::Validation { message, details } => (
+                StatusCode::BAD_REQUEST,
+                "VALIDATION_ERROR",
+                message.as_str(),
+                Some(details.clone()),
+            ),
             AppError::Internal(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "INTERNAL_ERROR",
                 "サーバー内部エラーが発生しました",
+                None,
             ),
         };
 
@@ -63,7 +85,7 @@ impl IntoResponse for AppError {
             error: ErrorDetail {
                 code: code.to_string(),
                 message: message.to_string(),
-                details: None,
+                details,
             },
         };
 
