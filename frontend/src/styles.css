@@ -1,0 +1,51 @@
+/**
+ * Pattern A デザイントークン（docs/08-ui-design.md §3）。
+ * Tailwind v4 の @theme と CSS 変数の両方で定義し、
+ * プロトタイプ `prototypes/pattern-a/` の配色を再現する。
+ */
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+
+  --color-bg: #faf7f2;
+  --color-surface: #ffffff;
+  --color-primary: #e65100;
+  --color-primary-light: #fff3e0;
+  --color-text: #3e2723;
+  --color-muted: #8d6e63;
+  --color-border: #efebe9;
+  --color-star: #ff8f00;
+}
+
+:root {
+  --bg: #faf7f2;
+  --surface: #ffffff;
+  --primary: #e65100;
+  --primary-light: #fff3e0;
+  --text: #3e2723;
+  --muted: #8d6e63;
+  --border: #efebe9;
+  --star: #ff8f00;
+  --radius: 12px;
+  --shadow: 0 2px 8px rgba(62, 39, 35, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
