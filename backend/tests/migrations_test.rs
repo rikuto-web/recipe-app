@@ -23,10 +23,7 @@ async fn seed_inserts_five_categories() {
     assert_eq!(count, 5);
 
     let names = categories::list_names_ordered(&pool).await.unwrap();
-    assert_eq!(
-        names,
-        vec!["和食", "洋食", "中華", "デザート", "その他"]
-    );
+    assert_eq!(names, vec!["和食", "洋食", "中華", "デザート", "その他"]);
 }
 
 #[tokio::test]

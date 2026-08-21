@@ -2,7 +2,7 @@
 //!
 //! ロードバランサや開発時の疎通確認に利用する。DB 状態は見ない。
 
-use axum::{routing::get, Json, Router};
+use axum::{Json, Router, routing::get};
 use serde::Serialize;
 
 #[derive(Serialize)]
