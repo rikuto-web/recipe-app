@@ -17,12 +17,15 @@
 | [データモデル](docs/05-data-model.md) | ER 図とテーブル定義 |
 | [API 設計](docs/06-api.md) | REST 資源とリクエスト / レスポンス |
 | [システム構成](docs/07-architecture.md) | 3 層構成、ローカル、OCI IaaS、Terraform |
+| [UI デザイン](docs/08-ui-design.md) | Pattern A 採用、Tailwind / shadcn/ui |
+| [開発ガイド](docs/09-development-guide.md) | TDD 方針、テスト戦略、実装順序 |
 
 ## 技術スタック
 
 | 層 | 採用 | 役割 |
 | --- | --- | --- |
 | フロントエンド | TypeScript / TanStack Start | 画面、ルーティング、入力チェック、API 呼び出し |
+| UI | Tailwind CSS / shadcn/ui | Pattern A（ウォーム・カード型）のスタイルと共通コンポーネント |
 | バックエンド | Rust / Axum | REST API、バリデーション、トランザクション |
 | データベース | SQLite | レシピ・材料・手順・カテゴリの永続化 |
 | インフラ | Oracle Cloud Infrastructure（Compute） | IaaS 上での常駐プロセス |
@@ -75,6 +78,21 @@ flowchart LR
 - フロントエンドからデータベースへは直接アクセスしません。
 - 開発時はオリジンが異なるため、API 側で CORS により `http://localhost:5173` を許可します。
 
+## UI デザイン
+
+**Pattern A（ウォーム・カード型）** を採用します。プロトタイプは [`prototypes/pattern-a/`](prototypes/pattern-a/) を参照してください。
+
+- 一覧: カードグリッド + 上部フィルタバー
+- スタイル: Tailwind CSS でデザイントークンを再現
+- コンポーネント: shadcn/ui（Dialog、Toast、Form 等）
+- アイコン: Lucide React（★ テキスト・絵文字での UI 表現は使わない）
+
+詳細は [UI デザイン](docs/08-ui-design.md) を参照。
+
+## 開発方針
+
+実装は **TDD（RED → GREEN → REFACTOR）** と **垂直スライス**（ユースケース単位で API + 画面 + テストを完結）で進めます。詳細は [開発ガイド](docs/09-development-guide.md) を参照。
+
 ## 現状
 
-ドキュメント整備まで完了しています。アプリケーション本体の実装はこれから行います。
+ドキュメント整備まで完了しています。GitHub Issues に沿ってアプリケーション本体の実装を進めます。
