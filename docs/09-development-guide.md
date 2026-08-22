@@ -117,7 +117,7 @@ flowchart TD
 | VS-00 | マイグレーション、シード、health、CORS/エラー/ログ | TanStack Start、Tailwind、shadcn/ui、Lucide、`DifficultyRating`、AppShell |
 | VS-01 | `GET /api/categories`, `GET /api/recipes` | SC-01、search params 同期 |
 | VS-02 | `GET /api/recipes/{id}` | SC-02、按分、`DifficultyRating` |
-| VS-03 | `POST /api/recipes` | SC-03 |
+| VS-03 | `POST /api/recipes`（トランザクション登録、201 + Location） | SC-03（`/recipes/new`）、`RecipeCreatePage`、クライアント/サーバーバリデーション |
 | VS-04 | `PUT`, 材料/手順行 API | SC-04 |
 | VS-05 | `DELETE /api/recipes/{id}` | 一覧・詳細の削除 UI + Dialog |
 | VS-06 | — | docker-compose.yml |

@@ -80,7 +80,7 @@
 | q | string | 否 | タイトル部分一致 |
 | category_id | integer | 否 | カテゴリ ID |
 | difficulty | integer | 否 | 1〜5（星の数） |
-| max_cook_time | integer | 否 | 調理時間上限（分） |
+| max_cook_time | integer | 否 | 調理時間上限（分）。10 分単位（最小 10）に正規化して解釈する |
 | sort | string | 否 | `newest`（既定）, `cook_time_asc` |
 
 ### レスポンス 200
@@ -166,7 +166,19 @@
 
 ### レスポンス 400
 
-必須欠落、件数 0、不正な `category_id` / `difficulty`（1〜5 以外）等。
+必須欠落、件数 0、不正な `category_id` / `difficulty`（1〜5 以外）、`cook_time_minutes` が 10 未満または 10 分単位でない等。`§3.2` の `VALIDATION_ERROR` 形式。ネストフィールドは `ingredients[0].quantity` 形式。
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "入力内容に誤りがあります",
+    "details": [
+      { "field": "steps[0].body", "message": "手順本文は必須です" }
+    ]
+  }
+}
+```
 
 ## 8. PUT /api/recipes/{id}
 
@@ -297,7 +309,7 @@
 | description | 任意、0〜2000 文字 |
 | category_id | 必須、存在する categories.id |
 | servings | 必須、1 以上の整数 |
-| cook_time_minutes | 必須、0 以上の整数 |
+| cook_time_minutes | 必須、10 以上の整数、10 分単位 |
 | difficulty | 必須、1〜5 の整数 |
 | ingredients（作成時） | 1 件以上。各行: name 必須、quantity > 0、unit 必須（1〜20 文字） |
 | ingredients（行単位更新） | name / quantity / unit / sort_order。削除後 0 件は不可 |

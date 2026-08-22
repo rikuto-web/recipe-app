@@ -52,12 +52,16 @@ pub enum AppError {
 
 impl AppError {
     pub fn validation(field: &str, message: &str) -> Self {
+        Self::validations(vec![FieldError {
+            field: field.to_string(),
+            message: message.to_string(),
+        }])
+    }
+
+    pub fn validations(details: Vec<FieldError>) -> Self {
         Self::Validation {
             message: "入力内容に誤りがあります".to_string(),
-            details: vec![FieldError {
-                field: field.to_string(),
-                message: message.to_string(),
-            }],
+            details,
         }
     }
 

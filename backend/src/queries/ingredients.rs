@@ -5,6 +5,7 @@ use sqlx::{Row, SqlitePool};
 use super::query_sql;
 
 const LIST_BY_RECIPE: &str = query_sql!("ingredients/list_by_recipe.sql");
+const INSERT: &str = query_sql!("ingredients/insert.sql");
 
 /// 材料 1 行。
 #[derive(Debug, Clone, PartialEq)]
@@ -37,4 +38,26 @@ pub async fn list_by_recipe(
             })
         })
         .collect()
+}
+
+/// 材料 1 行を INSERT する。
+pub async fn insert<'e, E>(
+    executor: E,
+    recipe_id: i64,
+    sort_order: i32,
+    name: &str,
+    quantity: f64,
+    unit: &str,
+) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+{
+    sqlx::query(INSERT)
+        .bind(recipe_id)
+        .bind(sort_order)
+        .bind(name)
+        .bind(quantity)
+        .bind(unit)
+        .execute(executor)
+        .await
 }

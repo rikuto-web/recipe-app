@@ -22,6 +22,7 @@ async fn insert_recipe(
         pool,
         category_id,
         title,
+        "",
         servings,
         cook_time_minutes,
         difficulty,

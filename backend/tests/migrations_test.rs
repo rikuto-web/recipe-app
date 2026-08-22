@@ -34,6 +34,7 @@ async fn foreign_keys_reject_invalid_category_id() {
         &pool,
         999,
         "test",
+        "",
         1,
         10,
         1,
