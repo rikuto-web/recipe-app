@@ -166,7 +166,19 @@
 
 ### レスポンス 400
 
-必須欠落、件数 0、不正な `category_id` / `difficulty`（1〜5 以外）等。
+必須欠落、件数 0、不正な `category_id` / `difficulty`（1〜5 以外）、`cook_time_minutes` が 10 未満または 10 分単位でない等。`§3.2` の `VALIDATION_ERROR` 形式。ネストフィールドは `ingredients[0].quantity` 形式。
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "入力内容に誤りがあります",
+    "details": [
+      { "field": "steps[0].body", "message": "手順本文は必須です" }
+    ]
+  }
+}
+```
 
 ## 8. PUT /api/recipes/{id}
 
