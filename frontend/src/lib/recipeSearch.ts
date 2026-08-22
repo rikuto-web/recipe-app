@@ -5,6 +5,8 @@
 
 export type RecipeSort = 'newest' | 'cook_time_asc'
 
+export const MAX_COOK_TIME_FILTER_STEP_MINUTES = 10
+
 export type RecipeSearch = {
   q?: string
   category_id?: number
@@ -19,7 +21,7 @@ export function parseRecipeSearch(
   const q = parseOptionalString(search.q)
   const category_id = parsePositiveInt(search.category_id)
   const difficulty = parseIntInRange(search.difficulty, 1, 5)
-  const max_cook_time = parseNonNegativeInt(search.max_cook_time)
+  const max_cook_time = parseMaxCookTimeFilter(search.max_cook_time)
   const sort = parseSort(search.sort)
 
   return {
@@ -74,6 +76,22 @@ function parsePositiveInt(value: unknown): number | undefined {
 function parseNonNegativeInt(value: unknown): number | undefined {
   const parsed = parseIntValue(value)
   return parsed !== undefined && parsed >= 0 ? parsed : undefined
+}
+
+/** 一覧フィルタの調理時間上限を 10 分単位に揃える（UI 表示・API クエリと一致させる） */
+export function snapMaxCookTimeFilter(minutes: number): number {
+  const snapped =
+    Math.round(minutes / MAX_COOK_TIME_FILTER_STEP_MINUTES) *
+    MAX_COOK_TIME_FILTER_STEP_MINUTES
+  return Math.max(MAX_COOK_TIME_FILTER_STEP_MINUTES, snapped)
+}
+
+function parseMaxCookTimeFilter(value: unknown): number | undefined {
+  const parsed = parseNonNegativeInt(value)
+  if (parsed === undefined) {
+    return undefined
+  }
+  return snapMaxCookTimeFilter(parsed)
 }
 
 function parseIntInRange(

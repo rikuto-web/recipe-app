@@ -5,6 +5,7 @@ use sqlx::{Row, SqlitePool};
 use super::query_sql;
 
 const COUNT: &str = query_sql!("categories/count.sql");
+const GET_BY_ID: &str = query_sql!("categories/get_by_id.sql");
 const LIST: &str = query_sql!("categories/list.sql");
 const LIST_NAMES_ORDERED: &str = query_sql!("categories/list_names_ordered.sql");
 
@@ -33,6 +34,18 @@ pub async fn list(pool: &SqlitePool) -> Result<Vec<Category>, sqlx::Error> {
             })
         })
         .collect()
+}
+
+/// ID 指定でカテゴリを取得する。存在しなければ `None`。
+pub async fn get_by_id(pool: &SqlitePool, id: i64) -> Result<Option<Category>, sqlx::Error> {
+    let Some(row) = sqlx::query(GET_BY_ID).bind(id).fetch_optional(pool).await? else {
+        return Ok(None);
+    };
+
+    Ok(Some(Category {
+        id: row.try_get("id")?,
+        name: row.try_get("name")?,
+    }))
 }
 
 /// カテゴリ名一覧（id 昇順）。

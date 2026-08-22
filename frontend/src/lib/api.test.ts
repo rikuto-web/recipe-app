@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, loadRecipe, loadRecipeList } from '#/lib/api'
+import { ApiError, ApiValidationError, createRecipe, loadRecipe, loadRecipeList } from '#/lib/api'
 
 function jsonResponse(body: unknown, ok = true, status = 200): Response {
   return {
@@ -107,5 +107,114 @@ describe('loadRecipe', () => {
       name: 'ApiError',
       status: 404,
     } satisfies Partial<ApiError>)
+  })
+})
+
+describe('createRecipe', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('posts a recipe payload and returns detail', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.method).toBe('POST')
+      expect(JSON.parse(String(init?.body))).toMatchObject({
+        title: '醤油ラーメン',
+        category_id: 1,
+      })
+      return jsonResponse(
+        {
+          id: 5,
+          title: '醤油ラーメン',
+          description: '',
+          category: { id: 1, name: '和食' },
+          servings: 2,
+          cook_time_minutes: 30,
+          difficulty: 3,
+          ingredients: [],
+          steps: [],
+          created_at: '2026-08-21T00:00:00Z',
+          updated_at: '2026-08-21T00:00:00Z',
+        },
+        true,
+        201,
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const recipe = await createRecipe({
+      title: '醤油ラーメン',
+      description: '',
+      category_id: 1,
+      servings: 2,
+      cook_time_minutes: 30,
+      difficulty: 3,
+      ingredients: [
+        { sort_order: 1, name: '中華麺', quantity: 120, unit: 'g' },
+      ],
+      steps: [{ step_number: 1, body: 'スープを作る' }],
+    })
+
+    expect(recipe.id).toBe(5)
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/recipes$/),
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('throws ApiValidationError on 400', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse(
+          {
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: '入力内容に誤りがあります',
+              details: [{ field: 'title', message: 'タイトルは必須です' }],
+            },
+          },
+          false,
+          400,
+        ),
+      ),
+    )
+
+    await expect(
+      createRecipe({
+        title: '',
+        description: '',
+        category_id: 1,
+        servings: 2,
+        cook_time_minutes: 30,
+        difficulty: 3,
+        ingredients: [],
+        steps: [],
+      }),
+    ).rejects.toMatchObject({
+      name: 'ApiValidationError',
+      fieldErrors: { title: 'タイトルは必須です' },
+    } satisfies Partial<ApiValidationError>)
+  })
+
+  it('throws a helpful error on 405 when POST is unavailable', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse('', false, 405)),
+    )
+
+    await expect(
+      createRecipe({
+        title: '醤油ラーメン',
+        description: '',
+        category_id: 1,
+        servings: 2,
+        cook_time_minutes: 30,
+        difficulty: 3,
+        ingredients: [{ sort_order: 1, name: '中華麺', quantity: 120, unit: 'g' }],
+        steps: [{ step_number: 1, body: 'スープを作る' }],
+      }),
+    ).rejects.toThrow('バックエンドを再起動')
   })
 })

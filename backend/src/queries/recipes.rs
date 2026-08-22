@@ -58,25 +58,30 @@ pub struct RecipeListItem {
 }
 
 /// レシピ 1 件を INSERT する（親行のみ。材料・手順は別クエリ）。
-pub async fn insert(
-    pool: &SqlitePool,
+pub async fn insert<'e, E>(
+    executor: E,
     category_id: i64,
     title: &str,
+    description: &str,
     servings: i32,
     cook_time_minutes: i32,
     difficulty: i32,
     created_at: &str,
     updated_at: &str,
-) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error> {
+) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+{
     sqlx::query(INSERT)
         .bind(category_id)
         .bind(title)
+        .bind(description)
         .bind(servings)
         .bind(cook_time_minutes)
         .bind(difficulty)
         .bind(created_at)
         .bind(updated_at)
-        .execute(pool)
+        .execute(executor)
         .await
 }
 

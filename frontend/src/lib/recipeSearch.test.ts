@@ -25,6 +25,24 @@ describe('parseRecipeSearch', () => {
     })
   })
 
+  it('snaps max_cook_time to 10-minute steps for filter UI and API', () => {
+    expect(
+      parseRecipeSearch({
+        max_cook_time: '25',
+      }),
+    ).toEqual({
+      max_cook_time: 30,
+    })
+
+    expect(
+      parseRecipeSearch({
+        max_cook_time: '23',
+      }),
+    ).toEqual({
+      max_cook_time: 20,
+    })
+  })
+
   it('drops empty and invalid values and default sort', () => {
     expect(
       parseRecipeSearch({

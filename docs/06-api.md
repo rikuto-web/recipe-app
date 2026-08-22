@@ -80,7 +80,7 @@
 | q | string | 否 | タイトル部分一致 |
 | category_id | integer | 否 | カテゴリ ID |
 | difficulty | integer | 否 | 1〜5（星の数） |
-| max_cook_time | integer | 否 | 調理時間上限（分） |
+| max_cook_time | integer | 否 | 調理時間上限（分）。10 分単位（最小 10）に正規化して解釈する |
 | sort | string | 否 | `newest`（既定）, `cook_time_asc` |
 
 ### レスポンス 200
@@ -297,7 +297,7 @@
 | description | 任意、0〜2000 文字 |
 | category_id | 必須、存在する categories.id |
 | servings | 必須、1 以上の整数 |
-| cook_time_minutes | 必須、0 以上の整数 |
+| cook_time_minutes | 必須、10 以上の整数、10 分単位 |
 | difficulty | 必須、1〜5 の整数 |
 | ingredients（作成時） | 1 件以上。各行: name 必須、quantity > 0、unit 必須（1〜20 文字） |
 | ingredients（行単位更新） | name / quantity / unit / sort_order。削除後 0 件は不可 |

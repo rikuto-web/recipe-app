@@ -84,7 +84,7 @@ erDiagram
 | title | TEXT | NOT NULL | タイトル（1〜100 文字） |
 | description | TEXT | NOT NULL DEFAULT '' | 説明 |
 | servings | INTEGER | NOT NULL, CHECK (servings >= 1) | 基準人数 |
-| cook_time_minutes | INTEGER | NOT NULL, CHECK (cook_time_minutes >= 0) | 調理時間（分） |
+| cook_time_minutes | INTEGER | NOT NULL, CHECK (cook_time_minutes >= 0) | 調理時間（分）。アプリ/API では 10 以上・10 分単位で検証 |
 | difficulty | INTEGER | NOT NULL, CHECK (difficulty BETWEEN 1 AND 5) | 難易度（1=★1 … 5=★5） |
 | created_at | TEXT | NOT NULL | ISO 8601（UTC） |
 | updated_at | TEXT | NOT NULL | ISO 8601（UTC） |

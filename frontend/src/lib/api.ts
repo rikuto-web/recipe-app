@@ -6,6 +6,7 @@ import {
   toRecipeQueryString,
   type RecipeSearch,
 } from '#/lib/recipeSearch'
+import type { CreateRecipePayload } from '#/lib/recipeFormValidation'
 
 export const API_BASE =
   import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
@@ -17,6 +18,17 @@ export class ApiError extends Error {
     super(message)
     this.name = 'ApiError'
     this.status = status
+  }
+}
+
+export class ApiValidationError extends Error {
+  readonly status = 400
+  readonly fieldErrors: Record<string, string>
+
+  constructor(message: string, fieldErrors: Record<string, string>) {
+    super(message)
+    this.name = 'ApiValidationError'
+    this.fieldErrors = fieldErrors
   }
 }
 
@@ -74,6 +86,14 @@ type CategoriesResponse = {
   categories: Category[]
 }
 
+type ApiErrorResponse = {
+  error: {
+    code: string
+    message: string
+    details?: Array<{ field: string; message: string }>
+  }
+}
+
 type RecipesResponse = {
   recipes: RecipeSummary[]
   total: number
@@ -115,6 +135,47 @@ export async function loadRecipe(id: string | number): Promise<RecipeDetail> {
 
   if (!response.ok) {
     throw new Error('レシピ詳細の取得に失敗しました')
+  }
+
+  return (await response.json()) as RecipeDetail
+}
+
+export async function loadCategories(): Promise<Category[]> {
+  const response = await fetch(`${API_BASE}/api/categories`)
+
+  if (!response.ok) {
+    throw new Error('カテゴリ一覧の取得に失敗しました')
+  }
+
+  const json = (await response.json()) as CategoriesResponse
+  return json.categories
+}
+
+export async function createRecipe(
+  payload: CreateRecipePayload,
+): Promise<RecipeDetail> {
+  const response = await fetch(`${API_BASE}/api/recipes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (response.status === 400) {
+    const json = (await response.json()) as ApiErrorResponse
+    const fieldErrors = Object.fromEntries(
+      (json.error.details ?? []).map((detail) => [detail.field, detail.message]),
+    )
+    throw new ApiValidationError(json.error.message, fieldErrors)
+  }
+
+  if (response.status === 405) {
+    throw new Error(
+      '作成 API が利用できません。バックエンドを再起動してください（cargo run）。',
+    )
+  }
+
+  if (!response.ok) {
+    throw new Error(`レシピの作成に失敗しました（HTTP ${response.status}）`)
   }
 
   return (await response.json()) as RecipeDetail

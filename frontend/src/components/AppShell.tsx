@@ -26,10 +26,11 @@ export function AppShell({ children }: AppShellProps) {
               <span className="text-primary">レシピ</span>管理
             </h1>
           </Link>
-          {/* VS-03 で `/recipes/new` へ接続する */}
-          <Button type="button" disabled aria-label="新規作成（準備中）">
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            新規作成
+          <Button type="button" asChild>
+            <Link to="/recipes/new" aria-label="新規作成">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              新規作成
+            </Link>
           </Button>
         </header>
         <main>{children}</main>
