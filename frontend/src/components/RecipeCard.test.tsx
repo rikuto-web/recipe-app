@@ -22,6 +22,9 @@ describe('RecipeCard', () => {
     expect(
       screen.getByRole('heading', { name: '醤油ラーメン' }),
     ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /醤油ラーメン/ }),
+    ).toHaveAttribute('href', '/recipes/1')
     expect(screen.getByText('中華')).toBeInTheDocument()
     expect(screen.getByText('30分')).toBeInTheDocument()
     expect(screen.getByText('2人分')).toBeInTheDocument()

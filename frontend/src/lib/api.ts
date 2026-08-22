@@ -1,5 +1,5 @@
 /**
- * レシピ API クライアント（docs/06-api.md §4–5）。
+ * レシピ API クライアント（docs/06-api.md §4–6）。
  */
 
 import {
@@ -9,6 +9,16 @@ import {
 
 export const API_BASE =
   import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
 
 export type Category = {
   id: number
@@ -22,6 +32,34 @@ export type RecipeSummary = {
   servings: number
   cook_time_minutes: number
   difficulty: number
+  created_at: string
+  updated_at: string
+}
+
+export type Ingredient = {
+  id: number
+  sort_order: number
+  name: string
+  quantity: number
+  unit: string
+}
+
+export type RecipeStep = {
+  id: number
+  step_number: number
+  body: string
+}
+
+export type RecipeDetail = {
+  id: number
+  title: string
+  description: string
+  category: Category
+  servings: number
+  cook_time_minutes: number
+  difficulty: number
+  ingredients: Ingredient[]
+  steps: RecipeStep[]
   created_at: string
   updated_at: string
 }
@@ -66,4 +104,18 @@ export async function loadRecipeList(
     total: recipesJson.total,
     categories: categoriesJson.categories,
   }
+}
+
+export async function loadRecipe(id: string | number): Promise<RecipeDetail> {
+  const response = await fetch(`${API_BASE}/api/recipes/${id}`)
+
+  if (response.status === 404) {
+    throw new ApiError(404, 'レシピが見つかりません')
+  }
+
+  if (!response.ok) {
+    throw new Error('レシピ詳細の取得に失敗しました')
+  }
+
+  return (await response.json()) as RecipeDetail
 }

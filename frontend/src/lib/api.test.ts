@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { loadRecipeList } from '#/lib/api'
+import { ApiError, loadRecipe, loadRecipeList } from '#/lib/api'
 
-function jsonResponse(body: unknown, ok = true): Response {
+function jsonResponse(body: unknown, ok = true, status = 200): Response {
   return {
     ok,
+    status,
     json: async () => body,
   } as Response
 }
@@ -58,5 +59,53 @@ describe('loadRecipeList', () => {
     expect(parsed.searchParams.get('q')).toBe('ラーメン')
     expect(parsed.searchParams.get('category_id')).toBe('3')
     expect(urls.some((url) => url.endsWith('/api/categories'))).toBe(true)
+  })
+})
+
+describe('loadRecipe', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('loads a recipe detail by id', async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        id: 1,
+        title: '醤油ラーメン',
+        description: 'シンプルな醤油ラーメン',
+        category: { id: 1, name: '和食' },
+        servings: 2,
+        cook_time_minutes: 30,
+        difficulty: 3,
+        ingredients: [
+          { id: 10, sort_order: 1, name: '中華麺', quantity: 120, unit: 'g' },
+        ],
+        steps: [{ id: 20, step_number: 1, body: 'スープを作る' }],
+        created_at: '2026-08-21T00:00:00Z',
+        updated_at: '2026-08-21T00:00:00Z',
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const recipe = await loadRecipe(1)
+
+    expect(recipe.title).toBe('醤油ラーメン')
+    expect(recipe.ingredients).toHaveLength(1)
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/recipes\/1$/),
+    )
+  })
+
+  it('throws ApiError on 404', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ error: { code: 'NOT_FOUND' } }, false, 404)),
+    )
+
+    await expect(loadRecipe(999)).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 404,
+    } satisfies Partial<ApiError>)
   })
 })
