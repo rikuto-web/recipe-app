@@ -44,6 +44,8 @@ pub enum AppError {
         message: String,
         details: Vec<FieldError>,
     },
+    #[error("not found")]
+    NotFound { message: String },
     #[error("internal server error")]
     Internal(#[from] sqlx::Error),
 }
@@ -56,6 +58,12 @@ impl AppError {
                 field: field.to_string(),
                 message: message.to_string(),
             }],
+        }
+    }
+
+    pub fn not_found(message: &str) -> Self {
+        Self::NotFound {
+            message: message.to_string(),
         }
     }
 
@@ -73,6 +81,9 @@ impl IntoResponse for AppError {
                 message.as_str(),
                 Some(details.clone()),
             ),
+            AppError::NotFound { message } => {
+                (StatusCode::NOT_FOUND, "NOT_FOUND", message.as_str(), None)
+            }
             AppError::Internal(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "INTERNAL_ERROR",

@@ -1,15 +1,17 @@
-//! `GET /api/recipes`（docs/06-api.md §5）。
+//! `GET /api/recipes` と `GET /api/recipes/{id}`（docs/06-api.md §5–6）。
 
 use axum::{
     Json, Router,
-    extract::{Query, State},
+    extract::{Path, Query, State},
     routing::get,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
 use crate::error::AppError;
+use crate::queries::ingredients;
 use crate::queries::recipes::{self, RecipeListFilter, RecipeSort};
+use crate::queries::steps;
 
 #[derive(Debug, Deserialize)]
 struct RecipeListQuery {
@@ -44,6 +46,37 @@ struct CategoryJson {
     name: String,
 }
 
+#[derive(Serialize)]
+struct RecipeDetailJson {
+    id: i64,
+    title: String,
+    description: String,
+    category: CategoryJson,
+    servings: i32,
+    cook_time_minutes: i32,
+    difficulty: i32,
+    ingredients: Vec<IngredientJson>,
+    steps: Vec<StepJson>,
+    created_at: String,
+    updated_at: String,
+}
+
+#[derive(Serialize)]
+struct IngredientJson {
+    id: i64,
+    sort_order: i32,
+    name: String,
+    quantity: f64,
+    unit: String,
+}
+
+#[derive(Serialize)]
+struct StepJson {
+    id: i64,
+    step_number: i32,
+    body: String,
+}
+
 async fn list_recipes(
     State(pool): State<SqlitePool>,
     Query(query): Query<RecipeListQuery>,
@@ -70,6 +103,55 @@ async fn list_recipes(
         .collect();
 
     Ok(Json(RecipesResponse { recipes, total }))
+}
+
+async fn get_recipe(
+    State(pool): State<SqlitePool>,
+    Path(raw_id): Path<String>,
+) -> Result<Json<RecipeDetailJson>, AppError> {
+    let id = parse_path_integer("id", raw_id)?;
+    let Some(recipe) = recipes::get_by_id(&pool, id).await? else {
+        return Err(AppError::not_found("レシピが見つかりません"));
+    };
+
+    let ingredients = ingredients::list_by_recipe(&pool, id)
+        .await?
+        .into_iter()
+        .map(|item| IngredientJson {
+            id: item.id,
+            sort_order: item.sort_order,
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+        })
+        .collect();
+
+    let steps = steps::list_by_recipe(&pool, id)
+        .await?
+        .into_iter()
+        .map(|item| StepJson {
+            id: item.id,
+            step_number: item.step_number,
+            body: item.body,
+        })
+        .collect();
+
+    Ok(Json(RecipeDetailJson {
+        id: recipe.id,
+        title: recipe.title,
+        description: recipe.description,
+        category: CategoryJson {
+            id: recipe.category_id,
+            name: recipe.category_name,
+        },
+        servings: recipe.servings,
+        cook_time_minutes: recipe.cook_time_minutes,
+        difficulty: recipe.difficulty,
+        ingredients,
+        steps,
+        created_at: recipe.created_at,
+        updated_at: recipe.updated_at,
+    }))
 }
 
 fn parse_filter(query: RecipeListQuery) -> Result<RecipeListFilter, AppError> {
@@ -145,6 +227,16 @@ where
         .map_err(|_| AppError::validation(field, &format!("{field} は整数です")))
 }
 
+fn parse_path_integer<T>(field: &str, raw: String) -> Result<T, AppError>
+where
+    T: std::str::FromStr,
+{
+    parse_optional_integer(field, Some(raw))?
+        .ok_or_else(|| AppError::validation(field, &format!("{field} は整数です")))
+}
+
 pub fn router() -> Router<SqlitePool> {
-    Router::new().route("/api/recipes", get(list_recipes))
+    Router::new()
+        .route("/api/recipes", get(list_recipes))
+        .route("/api/recipes/{id}", get(get_recipe))
 }
