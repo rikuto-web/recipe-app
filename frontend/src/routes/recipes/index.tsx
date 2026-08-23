@@ -1,7 +1,7 @@
 /**
  * SC-01 レシピ一覧。フィルタ条件は URL search params と同期する。
  */
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 
 import { EmptyState } from '#/components/EmptyState'
 import { RecipeListPage } from '#/components/RecipeListPage'
@@ -20,6 +20,7 @@ function RecipesRoute() {
   const data = Route.useLoaderData()
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
+  const router = useRouter()
 
   return (
     <RecipeListPage
@@ -29,6 +30,9 @@ function RecipesRoute() {
       filters={search}
       onSubmit={(next) => {
         void navigate({ search: () => next })
+      }}
+      onRecipeDeleted={() => {
+        void router.invalidate()
       }}
     />
   )

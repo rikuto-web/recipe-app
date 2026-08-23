@@ -3,7 +3,7 @@
  * 人数按分はクライアントのみ。編集は `/recipes/$id/edit` へ接続する。
  */
 import { useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import {
   ArrowLeft,
   Carrot,
@@ -16,6 +16,7 @@ import {
   Users,
 } from 'lucide-react'
 
+import { DeleteRecipeButton } from '#/components/DeleteRecipeButton'
 import { DifficultyRating } from '#/components/DifficultyRating'
 import { EmptyState } from '#/components/EmptyState'
 import { Button } from '#/components/ui/button'
@@ -28,6 +29,7 @@ type RecipeDetailPageProps = {
 
 export function RecipeDetailPage({ recipe }: RecipeDetailPageProps) {
   const [displayServings, setDisplayServings] = useState(recipe.servings)
+  const navigate = useNavigate()
 
   return (
     <article>
@@ -38,12 +40,21 @@ export function RecipeDetailPage({ recipe }: RecipeDetailPageProps) {
             一覧
           </Link>
         </Button>
-        <Button variant="outline" asChild>
-          <Link to="/recipes/$id/edit" params={{ id: String(recipe.id) }}>
-            <Pencil className="h-4 w-4" aria-hidden="true" />
-            編集
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/recipes/$id/edit" params={{ id: String(recipe.id) }}>
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              編集
+            </Link>
+          </Button>
+          <DeleteRecipeButton
+            recipeId={recipe.id}
+            recipeTitle={recipe.title}
+            onDeleted={() => {
+              void navigate({ to: '/recipes' })
+            }}
+          />
+        </div>
       </div>
 
       <h2 className="mb-3 text-2xl font-bold">{recipe.title}</h2>

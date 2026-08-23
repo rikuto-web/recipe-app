@@ -6,6 +6,7 @@ use super::query_sql;
 
 const INSERT: &str = query_sql!("recipes/insert.sql");
 const UPDATE: &str = query_sql!("recipes/update.sql");
+const DELETE: &str = query_sql!("recipes/delete.sql");
 const TOUCH_UPDATED_AT: &str = query_sql!("recipes/touch_updated_at.sql");
 const GET_BY_ID: &str = query_sql!("recipes/get_by_id.sql");
 const LIST_NEWEST: &str = query_sql!("recipes/list_newest.sql");
@@ -113,6 +114,14 @@ where
         .bind(id)
         .execute(executor)
         .await
+}
+
+/// レシピ 1 件を物理 DELETE する（材料・手順は CASCADE）。
+pub async fn delete<'e, E>(executor: E, id: i64) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+{
+    sqlx::query(DELETE).bind(id).execute(executor).await
 }
 
 /// `updated_at` だけ更新する（子行の追加・更新・削除時）。
