@@ -46,8 +46,10 @@ pub enum AppError {
     },
     #[error("not found")]
     NotFound { message: String },
+    #[error("database error")]
+    Database(#[from] sqlx::Error),
     #[error("internal server error")]
-    Internal(#[from] sqlx::Error),
+    Internal(String),
 }
 
 impl AppError {
@@ -72,7 +74,7 @@ impl AppError {
     }
 
     pub fn internal_server_error() -> Self {
-        Self::Internal(sqlx::Error::RowNotFound)
+        Self::Internal("unexpected internal error".to_string())
     }
 }
 
@@ -88,12 +90,24 @@ impl IntoResponse for AppError {
             AppError::NotFound { message } => {
                 (StatusCode::NOT_FOUND, "NOT_FOUND", message.as_str(), None)
             }
-            AppError::Internal(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "INTERNAL_ERROR",
-                "サーバー内部エラーが発生しました",
-                None,
-            ),
+            AppError::Database(error) => {
+                tracing::error!(error = %error, "database error");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "サーバー内部エラーが発生しました",
+                    None,
+                )
+            }
+            AppError::Internal(message) => {
+                tracing::error!(message = %message, "internal error");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "サーバー内部エラーが発生しました",
+                    None,
+                )
+            }
         };
 
         let body = ErrorBody {

@@ -6,16 +6,11 @@ use sqlx::SqlitePool;
 
 use crate::error::AppError;
 use crate::queries::categories;
+use crate::routes::dto::CategoryJson;
 
 #[derive(Serialize)]
 struct CategoriesResponse {
     categories: Vec<CategoryJson>,
-}
-
-#[derive(Serialize)]
-struct CategoryJson {
-    id: i64,
-    name: String,
 }
 
 async fn list_categories(

@@ -6,6 +6,7 @@ import {
   normalizeFieldErrors,
   normalizeNumericInput,
   recipeToFormValues,
+  scalarCharCount,
   validateParentForm,
   validateRecipeForm,
   validateRecipeFormField,
@@ -200,6 +201,15 @@ describe('isParentFormDirty', () => {
     expect(
       isParentFormDirty({ ...values, title: '味噌ラーメン' }, baseline),
     ).toBe(true)
+  })
+})
+
+describe('scalarCharCount', () => {
+  it('counts Unicode code points so surrogate pairs are one character', () => {
+    expect(scalarCharCount('abc')).toBe(3)
+    expect(scalarCharCount('😀')).toBe(1)
+    expect(scalarCharCount('a😀b')).toBe(3)
+    expect('😀'.length).toBe(2)
   })
 })
 

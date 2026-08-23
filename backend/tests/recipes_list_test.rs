@@ -47,7 +47,9 @@ async fn get_json(uri: &str) -> (StatusCode, Value) {
 }
 
 async fn test_app_with_pool(pool: SqlitePool) -> axum::Router {
-    recipe_backend::build_app(pool)
+    recipe_backend::build_app(pool, recipe_backend::parse_cors_origins(
+        recipe_backend::DEFAULT_CORS_ORIGIN,
+    ))
 }
 
 async fn request_json(app: axum::Router, uri: &str) -> (StatusCode, Value) {

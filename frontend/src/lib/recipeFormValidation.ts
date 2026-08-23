@@ -46,6 +46,11 @@ export const UNIT_SUGGESTIONS = [
 export const COOK_TIME_STEP_MINUTES = 10
 export const MIN_COOK_TIME_MINUTES = COOK_TIME_STEP_MINUTES
 
+/** Unicode スカラー値の文字数（バックエンド `chars().count()` と揃える） */
+export function scalarCharCount(value: string): number {
+  return [...value].length
+}
+
 /** 全角数字・小数点を半角に揃える（入力時・バリデーション時に使う） */
 export function normalizeNumericInput(value: string): string {
   return value
@@ -129,14 +134,14 @@ export function validateRecipeFormField(
     if (!title) {
       return required ? 'タイトルは必須です' : undefined
     }
-    if (title.length > 100) {
+    if (scalarCharCount(title) > 100) {
       return 'タイトルは100文字以内です'
     }
     return undefined
   }
 
   if (field === 'description') {
-    if (values.description.trim().length > 2000) {
+    if (scalarCharCount(values.description.trim()) > 2000) {
       return '説明は2000文字以内です'
     }
     return undefined
@@ -208,7 +213,7 @@ export function validateRecipeFormField(
     if (!name) {
       return required ? '材料名は必須です' : undefined
     }
-    if (name.length > 100) {
+    if (scalarCharCount(name) > 100) {
       return '材料名は100文字以内です'
     }
     return undefined
@@ -243,7 +248,7 @@ export function validateRecipeFormField(
     if (!unit) {
       return required ? '単位は必須です' : undefined
     }
-    if (unit.length > 20) {
+    if (scalarCharCount(unit) > 20) {
       return '単位は20文字以内です'
     }
     return undefined
@@ -267,7 +272,7 @@ export function validateRecipeFormField(
     if (!body) {
       return required ? '手順本文は必須です' : undefined
     }
-    if (body.length > 2000) {
+    if (scalarCharCount(body) > 2000) {
       return '手順本文は2000文字以内です'
     }
     return undefined

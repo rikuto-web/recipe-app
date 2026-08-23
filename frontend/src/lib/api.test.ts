@@ -212,7 +212,7 @@ describe('createRecipe', () => {
     } satisfies Partial<ApiValidationError>)
   })
 
-  it('throws a helpful error on 405 when POST is unavailable', async () => {
+  it('throws on non-400 error responses', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse('', false, 405)),
@@ -229,7 +229,7 @@ describe('createRecipe', () => {
         ingredients: [{ sort_order: 1, name: '中華麺', quantity: 120, unit: 'g' }],
         steps: [{ step_number: 1, body: 'スープを作る' }],
       }),
-    ).rejects.toThrow('バックエンドを再起動')
+    ).rejects.toThrow('リクエストに失敗しました（HTTP 405）')
   })
 })
 

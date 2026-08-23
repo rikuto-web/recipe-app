@@ -56,7 +56,9 @@ async fn seed_ramen(pool: &SqlitePool) -> i64 {
 }
 
 async fn test_app_with_pool(pool: SqlitePool) -> axum::Router {
-    recipe_backend::build_app(pool)
+    recipe_backend::build_app(pool, recipe_backend::parse_cors_origins(
+        recipe_backend::DEFAULT_CORS_ORIGIN,
+    ))
 }
 
 async fn request_json(app: axum::Router, method: &str, uri: &str) -> (StatusCode, Value) {

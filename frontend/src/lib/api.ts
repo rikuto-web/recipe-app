@@ -115,8 +115,12 @@ export async function loadRecipeList(
     fetch(`${API_BASE}/api/categories`),
   ])
 
-  if (!recipesRes.ok || !categoriesRes.ok) {
-    throw new Error('レシピ一覧の取得に失敗しました')
+  if (!recipesRes.ok) {
+    await readApiError(recipesRes)
+  }
+
+  if (!categoriesRes.ok) {
+    await readApiError(categoriesRes)
   }
 
   const recipesJson = (await recipesRes.json()) as RecipesResponse
@@ -137,7 +141,7 @@ export async function loadRecipe(id: string | number): Promise<RecipeDetail> {
   }
 
   if (!response.ok) {
-    throw new Error('レシピ詳細の取得に失敗しました')
+    await readApiError(response)
   }
 
   return (await response.json()) as RecipeDetail
@@ -147,7 +151,7 @@ export async function loadCategories(): Promise<Category[]> {
   const response = await fetch(`${API_BASE}/api/categories`)
 
   if (!response.ok) {
-    throw new Error('カテゴリ一覧の取得に失敗しました')
+    await readApiError(response)
   }
 
   const json = (await response.json()) as CategoriesResponse
@@ -203,18 +207,8 @@ export async function createRecipe(
     body: JSON.stringify(payload),
   })
 
-  if (response.status === 400) {
-    await readApiError(response)
-  }
-
-  if (response.status === 405) {
-    throw new Error(
-      '作成 API が利用できません。バックエンドを再起動してください（cargo run）。',
-    )
-  }
-
   if (!response.ok) {
-    throw new Error(`レシピの作成に失敗しました（HTTP ${response.status}）`)
+    await readApiError(response)
   }
 
   return (await response.json()) as RecipeDetail

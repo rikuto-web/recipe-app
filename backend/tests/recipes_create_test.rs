@@ -28,7 +28,9 @@ fn valid_payload() -> Value {
 }
 
 async fn test_app_with_pool(pool: SqlitePool) -> axum::Router {
-    recipe_backend::build_app(pool)
+    recipe_backend::build_app(pool, recipe_backend::parse_cors_origins(
+        recipe_backend::DEFAULT_CORS_ORIGIN,
+    ))
 }
 
 async fn post_json(app: axum::Router, body: Value) -> (StatusCode, Value) {
