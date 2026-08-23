@@ -236,6 +236,8 @@
 
 ### DELETE /api/recipes/{id}/ingredients/{ingredient_id}
 
+**レスポンス 200** … `{ "message": "deleted" }`
+
 **制約**: 削除後に材料が 0 件になる場合は 400（最低 1 材料必須）。
 
 ## 10. 手順の行単位 API
@@ -277,7 +279,7 @@
 
 ### DELETE /api/recipes/{id}/steps/{step_id}
 
-**レスポンス 200** または **204**
+**レスポンス 200** … `{ "message": "deleted" }`
 
 削除後、残りの手順の `step_number` を詰める。
 
@@ -344,6 +346,8 @@ sequenceDiagram
 
 ## 15. データフロー（材料のピンポイント更新）
 
+編集画面（SC-04）ではフッター保存 1 回で変更行をまとめて送る。API は 1 行ずつ処理する。
+
 ```mermaid
 sequenceDiagram
   participant Browser as ブラウザ
@@ -351,11 +355,11 @@ sequenceDiagram
   participant API as Rust_Axum
   participant DB as SQLite
 
-  Browser->>FE: 材料1行の保存
+  Browser->>FE: フッター保存（材料行を変更）
   FE->>API: PATCH /api/recipes/{id}/ingredients/{ingredient_id}
   API->>DB: UPDATE ingredients
   API-->>FE: 200 + 更新行
-  FE-->>Browser: 当該行のみ反映
+  FE-->>Browser: 保存成功後に詳細へ遷移
 ```
 
 ## 16. データフロー（手順のピンポイント更新）
@@ -367,12 +371,12 @@ sequenceDiagram
   participant API as Rust_Axum
   participant DB as SQLite
 
-  Browser->>FE: 手順1行の保存
+  Browser->>FE: フッター保存（手順行を変更）
   FE->>API: PATCH /api/recipes/{id}/steps/{step_id}
   API->>API: バリデーション
   API->>DB: UPDATE steps
   API-->>FE: 200 + 更新行
-  FE-->>Browser: 当該行のみ反映
+  FE-->>Browser: 保存成功後に詳細へ遷移
 ```
 
 ## 17. CORS（開発）

@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import {
   createInitialFormValues,
+  isParentFormDirty,
   normalizeFieldErrors,
   normalizeNumericInput,
+  recipeToFormValues,
+  validateParentForm,
   validateRecipeForm,
   validateRecipeFormField,
 } from '#/lib/recipeFormValidation'
@@ -136,6 +139,67 @@ describe('normalizeFieldErrors', () => {
       'ingredients.0.quantity': '分量は 0 より大きい数値です',
       'steps.1.body': '手順本文は必須です',
     })
+  })
+})
+
+describe('recipeToFormValues', () => {
+  it('maps a recipe detail into form values with row ids', () => {
+    const values = recipeToFormValues({
+      title: '醤油ラーメン',
+      description: 'シンプル',
+      category: { id: 1 },
+      servings: 2,
+      cook_time_minutes: 30,
+      difficulty: 3,
+      ingredients: [{ id: 10, name: '中華麺', quantity: 120, unit: 'g' }],
+      steps: [{ id: 20, body: 'スープを作る' }],
+    })
+
+    expect(values.title).toBe('醤油ラーメン')
+    expect(values.category_id).toBe('1')
+    expect(values.ingredients[0]).toMatchObject({
+      id: 10,
+      name: '中華麺',
+      quantity: '120',
+      unit: 'g',
+    })
+    expect(values.steps[0]).toMatchObject({ id: 20, body: 'スープを作る' })
+  })
+})
+
+describe('validateParentForm', () => {
+  it('validates parent fields only', () => {
+    const values = createInitialFormValues()
+    const errors = validateParentForm(values)
+
+    expect(errors.title).toBe('タイトルは必須です')
+    expect(errors['ingredients.0.name']).toBeUndefined()
+    expect(errors['steps.0.body']).toBeUndefined()
+  })
+})
+
+describe('isParentFormDirty', () => {
+  it('ignores ingredient and step edits', () => {
+    const baseline = recipeToFormValues({
+      title: '醤油ラーメン',
+      description: '',
+      category: { id: 1 },
+      servings: 2,
+      cook_time_minutes: 30,
+      difficulty: 3,
+      ingredients: [{ id: 10, name: '中華麺', quantity: 120, unit: 'g' }],
+      steps: [{ id: 20, body: 'スープを作る' }],
+    })
+    const values = {
+      ...baseline,
+      ingredients: [{ ...baseline.ingredients[0]!, name: '太麺' }],
+    }
+
+    expect(isParentFormDirty(values, baseline)).toBe(false)
+
+    expect(
+      isParentFormDirty({ ...values, title: '味噌ラーメン' }, baseline),
+    ).toBe(true)
   })
 })
 

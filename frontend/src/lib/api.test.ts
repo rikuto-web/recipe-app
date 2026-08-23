@@ -1,6 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, ApiValidationError, createRecipe, loadRecipe, loadRecipeList } from '#/lib/api'
+import {
+  ApiError,
+  ApiValidationError,
+  createIngredient,
+  createRecipe,
+  createStep,
+  deleteIngredient,
+  deleteStep,
+  loadRecipe,
+  loadRecipeList,
+  updateIngredient,
+  updateRecipe,
+  updateStep,
+} from '#/lib/api'
 
 function jsonResponse(body: unknown, ok = true, status = 200): Response {
   return {
@@ -216,5 +229,204 @@ describe('createRecipe', () => {
         steps: [{ step_number: 1, body: 'スープを作る' }],
       }),
     ).rejects.toThrow('バックエンドを再起動')
+  })
+})
+
+describe('updateRecipe', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('puts parent fields only and returns detail', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.method).toBe('PUT')
+      expect(JSON.parse(String(init?.body))).toEqual({
+        title: '味噌ラーメン',
+        description: '',
+        category_id: 3,
+        servings: 4,
+        cook_time_minutes: 40,
+        difficulty: 4,
+      })
+      return jsonResponse({
+        id: 1,
+        title: '味噌ラーメン',
+        description: '',
+        category: { id: 3, name: '中華' },
+        servings: 4,
+        cook_time_minutes: 40,
+        difficulty: 4,
+        ingredients: [],
+        steps: [],
+        created_at: '2026-08-21T00:00:00Z',
+        updated_at: '2026-08-22T00:00:00Z',
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const recipe = await updateRecipe(1, {
+      title: '味噌ラーメン',
+      description: '',
+      category_id: 3,
+      servings: 4,
+      cook_time_minutes: 40,
+      difficulty: 4,
+    })
+
+    expect(recipe.title).toBe('味噌ラーメン')
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/recipes\/1$/),
+      expect.objectContaining({ method: 'PUT' }),
+    )
+  })
+
+  it('throws ApiValidationError on 400', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse(
+          {
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: '入力内容に誤りがあります',
+              details: [{ field: 'title', message: 'タイトルは必須です' }],
+            },
+          },
+          false,
+          400,
+        ),
+      ),
+    )
+
+    await expect(
+      updateRecipe(1, {
+        title: '',
+        description: '',
+        category_id: 1,
+        servings: 2,
+        cook_time_minutes: 30,
+        difficulty: 3,
+      }),
+    ).rejects.toMatchObject({
+      name: 'ApiValidationError',
+      fieldErrors: { title: 'タイトルは必須です' },
+    } satisfies Partial<ApiValidationError>)
+  })
+})
+
+describe('ingredient and step row APIs', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('patches one ingredient row', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.method).toBe('PATCH')
+      expect(JSON.parse(String(init?.body))).toEqual({ quantity: 15 })
+      return jsonResponse({
+        id: 10,
+        sort_order: 1,
+        name: '中華麺',
+        quantity: 15,
+        unit: 'g',
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const row = await updateIngredient(1, 10, { quantity: 15 })
+
+    expect(row.quantity).toBe(15)
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/recipes\/1\/ingredients\/10$/),
+      expect.objectContaining({ method: 'PATCH' }),
+    )
+  })
+
+  it('posts a new ingredient row', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.method).toBe('POST')
+      return jsonResponse(
+        { id: 12, sort_order: 3, name: 'ネギ', quantity: 10, unit: 'g' },
+        true,
+        201,
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const row = await createIngredient(1, {
+      name: 'ネギ',
+      quantity: 10,
+      unit: 'g',
+      sort_order: 3,
+    })
+
+    expect(row.id).toBe(12)
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/recipes\/1\/ingredients$/),
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('deletes an ingredient row', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ message: 'deleted' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await deleteIngredient(1, 11)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/recipes\/1\/ingredients\/11$/),
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('patches one step row', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.method).toBe('PATCH')
+      return jsonResponse({
+        id: 21,
+        step_number: 2,
+        body: '麺を al dente になるまで茹でる',
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const row = await updateStep(1, 21, {
+      body: '麺を al dente になるまで茹でる',
+    })
+
+    expect(row.body).toContain('al dente')
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/recipes\/1\/steps\/21$/),
+      expect.objectContaining({ method: 'PATCH' }),
+    )
+  })
+
+  it('posts a new step row and deletes a step row', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return jsonResponse(
+          { id: 22, step_number: 3, body: '盛り付ける' },
+          true,
+          201,
+        )
+      }
+      return jsonResponse({ message: 'deleted' })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const created = await createStep(1, { body: '盛り付ける' })
+    await deleteStep(1, 20)
+
+    expect(created.step_number).toBe(3)
+    const urls = fetchMock.mock.calls.map(([input, init]) => [
+      String(input),
+      init?.method,
+    ])
+    expect(urls[0]?.[0]).toMatch(/\/api\/recipes\/1\/steps$/)
+    expect(urls[0]?.[1]).toBe('POST')
+    expect(urls[1]?.[0]).toMatch(/\/api\/recipes\/1\/steps\/20$/)
+    expect(urls[1]?.[1]).toBe('DELETE')
   })
 })

@@ -4,6 +4,7 @@
 
 export type IngredientFormRow = {
   key: string
+  id?: number
   name: string
   quantity: string
   unit: string
@@ -11,6 +12,7 @@ export type IngredientFormRow = {
 
 export type StepFormRow = {
   key: string
+  id?: number
   body: string
 }
 
@@ -316,6 +318,125 @@ export type CreateRecipePayload = {
     step_number: number
     body: string
   }>
+}
+
+export type UpdateRecipePayload = {
+  title: string
+  description: string
+  category_id: number
+  servings: number
+  cook_time_minutes: number
+  difficulty: number
+}
+
+export function toUpdateRecipePayload(values: RecipeFormValues): UpdateRecipePayload {
+  return {
+    title: values.title.trim(),
+    description: values.description.trim(),
+    category_id: Number(values.category_id),
+    servings: Number(normalizeNumericInput(values.servings.trim())),
+    cook_time_minutes: Number(
+      normalizeNumericInput(values.cook_time_minutes.trim()),
+    ),
+    difficulty: values.difficulty,
+  }
+}
+
+export function recipeToFormValues(recipe: {
+  title: string
+  description: string
+  category: { id: number }
+  servings: number
+  cook_time_minutes: number
+  difficulty: number
+  ingredients: Array<{
+    id: number
+    name: string
+    quantity: number
+    unit: string
+  }>
+  steps: Array<{ id: number; body: string }>
+}): RecipeFormValues {
+  return {
+    title: recipe.title,
+    description: recipe.description,
+    category_id: String(recipe.category.id),
+    servings: String(recipe.servings),
+    cook_time_minutes: String(recipe.cook_time_minutes),
+    difficulty: recipe.difficulty,
+    ingredients: recipe.ingredients.map((ingredient) => ({
+      key: `ingredient-${ingredient.id}`,
+      id: ingredient.id,
+      name: ingredient.name,
+      quantity: String(ingredient.quantity),
+      unit: ingredient.unit,
+    })),
+    steps: recipe.steps.map((step) => ({
+      key: `step-${step.id}`,
+      id: step.id,
+      body: step.body,
+    })),
+  }
+}
+
+export function validateParentForm(values: RecipeFormValues): RecipeFormErrors {
+  const errors: RecipeFormErrors = {}
+  for (const field of [
+    'title',
+    'description',
+    'category_id',
+    'servings',
+    'cook_time_minutes',
+    'difficulty',
+  ]) {
+    const message = validateRecipeFormField(values, field, { required: true })
+    if (message) {
+      errors[field] = message
+    }
+  }
+  return errors
+}
+
+export function validateIngredientRow(
+  values: RecipeFormValues,
+  index: number,
+): RecipeFormErrors {
+  const errors: RecipeFormErrors = {}
+  for (const suffix of ['name', 'quantity', 'unit']) {
+    const field = `ingredients.${index}.${suffix}`
+    const message = validateRecipeFormField(values, field, { required: true })
+    if (message) {
+      errors[field] = message
+    }
+  }
+  return errors
+}
+
+export function validateStepRow(
+  values: RecipeFormValues,
+  index: number,
+): RecipeFormErrors {
+  const errors: RecipeFormErrors = {}
+  const field = `steps.${index}.body`
+  const message = validateRecipeFormField(values, field, { required: true })
+  if (message) {
+    errors[field] = message
+  }
+  return errors
+}
+
+export function isParentFormDirty(
+  values: RecipeFormValues,
+  baseline: RecipeFormValues,
+): boolean {
+  return (
+    values.title.trim() !== baseline.title.trim() ||
+    values.description.trim() !== baseline.description.trim() ||
+    values.category_id !== baseline.category_id ||
+    values.servings !== baseline.servings ||
+    values.cook_time_minutes !== baseline.cook_time_minutes ||
+    values.difficulty !== baseline.difficulty
+  )
 }
 
 export function toCreateRecipePayload(values: RecipeFormValues): CreateRecipePayload {
