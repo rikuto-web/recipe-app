@@ -1,6 +1,6 @@
 /**
  * SC-02 レシピ詳細（docs/04-screen-transitions.md, docs/08-ui-design.md §4）。
- * 人数按分はクライアントのみ。編集は VS-04 で接続する。
+ * 人数按分はクライアントのみ。編集は `/recipes/$id/edit` へ接続する。
  */
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
@@ -38,10 +38,11 @@ export function RecipeDetailPage({ recipe }: RecipeDetailPageProps) {
             一覧
           </Link>
         </Button>
-        {/* VS-04 で `/recipes/$id/edit` へ接続する */}
-        <Button type="button" variant="outline" disabled aria-label="編集（準備中）">
-          <Pencil className="h-4 w-4" aria-hidden="true" />
-          編集
+        <Button variant="outline" asChild>
+          <Link to="/recipes/$id/edit" params={{ id: String(recipe.id) }}>
+            <Pencil className="h-4 w-4" aria-hidden="true" />
+            編集
+          </Link>
         </Button>
       </div>
 

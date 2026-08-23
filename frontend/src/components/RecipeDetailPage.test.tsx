@@ -49,6 +49,10 @@ describe('RecipeDetailPage', () => {
       'href',
       '/recipes',
     )
+    expect(screen.getByRole('link', { name: /編集/ })).toHaveAttribute(
+      'href',
+      '/recipes/1/edit',
+    )
     expect(document.querySelector('.lucide-arrow-left')).not.toBeNull()
     expect(document.querySelector('.lucide-pencil')).not.toBeNull()
     expect(document.querySelector('.lucide-clock')).not.toBeNull()

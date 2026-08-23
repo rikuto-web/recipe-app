@@ -1,9 +1,10 @@
 /**
- * SC-03 レシピ新規作成（docs/04-screen-transitions.md, docs/08-ui-design.md §4）。
+ * SC-04 レシピ編集（docs/04-screen-transitions.md, docs/08-ui-design.md §4）。
+ * 画面上の変更はフッターの保存 1 つで送信する（親 PUT + 変更行の POST / PATCH / DELETE）。
  */
 import { useRef, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Plus, Save, Trash2 } from 'lucide-react'
 
 import { DifficultySelector } from '#/components/DifficultySelector'
 import { CookTimeStepper } from '#/components/CookTimeStepper'
@@ -11,35 +12,41 @@ import { UnitInput } from '#/components/UnitInput'
 import { Button } from '#/components/ui/button'
 import {
   ApiValidationError,
-  createRecipe,
+  updateRecipe,
   type Category,
+  type RecipeDetail,
 } from '#/lib/api'
 import {
   createEmptyIngredientRow,
   createEmptyStepRow,
-  createInitialFormValues,
   isRecipeFormDirty,
   normalizeFieldErrors,
   normalizeNumericInput,
-  toCreateRecipePayload,
+  recipeToFormValues,
+  toUpdateRecipePayload,
   validateRecipeForm,
   validateRecipeFormField,
+  type IngredientFormRow,
   type RecipeFormErrors,
   type RecipeFormValues,
+  type StepFormRow,
 } from '#/lib/recipeFormValidation'
+import { persistRecipeEditRows } from '#/lib/recipeEditPersistence'
 
-type RecipeCreatePageProps = {
+type RecipeEditPageProps = {
+  recipe: RecipeDetail
   categories: Category[]
 }
 
-export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
+export function RecipeEditPage({ recipe, categories }: RecipeEditPageProps) {
   const navigate = useNavigate()
   const cancelDialogRef = useRef<HTMLDialogElement>(null)
-  const defaultCategoryId = categories[0]?.id
-  const [baseline] = useState(() => createInitialFormValues(defaultCategoryId))
+  const [baseline, setBaseline] = useState(() => recipeToFormValues(recipe))
   const [values, setValues] = useState<RecipeFormValues>(() =>
-    createInitialFormValues(defaultCategoryId),
+    recipeToFormValues(recipe),
   )
+  const [deletedIngredientIds, setDeletedIngredientIds] = useState<number[]>([])
+  const [deletedStepIds, setDeletedStepIds] = useState<number[]>([])
   const [errors, setErrors] = useState<RecipeFormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -67,22 +74,12 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
     applyFieldError(next, field, true)
   }
 
-  function updateValues(
-    next: RecipeFormValues,
-    changedField?: string,
-    options?: { clearErrors?: boolean },
-  ) {
+  function updateValues(next: RecipeFormValues, changedField?: string) {
     setValues(next)
     setSubmitError(null)
-    if (options?.clearErrors) {
-      setErrors({})
-      return
+    if (changedField) {
+      applyFieldError(next, changedField, true)
     }
-    if (!changedField) {
-      return
-    }
-
-    applyFieldError(next, changedField, true)
   }
 
   function handleCancelClick() {
@@ -90,7 +87,35 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
       cancelDialogRef.current?.showModal()
       return
     }
-    void navigate({ to: '/recipes' })
+    void navigate({ to: '/recipes/$id', params: { id: String(recipe.id) } })
+  }
+
+  function handleDeleteIngredient(index: number) {
+    const row = values.ingredients[index]
+    if (!row || values.ingredients.length <= 1) {
+      return
+    }
+    if (row.id != null) {
+      setDeletedIngredientIds((current) => [...current, row.id!])
+    }
+    updateValues({
+      ...values,
+      ingredients: values.ingredients.filter((item) => item.key !== row.key),
+    })
+  }
+
+  function handleDeleteStep(index: number) {
+    const row = values.steps[index]
+    if (!row || values.steps.length <= 1) {
+      return
+    }
+    if (row.id != null) {
+      setDeletedStepIds((current) => [...current, row.id!])
+    }
+    updateValues({
+      ...values,
+      steps: values.steps.filter((item) => item.key !== row.key),
+    })
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -107,20 +132,45 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
     }
 
     setIsSubmitting(true)
+    let progress = {
+      values,
+      baseline,
+      deletedIngredientIds,
+      deletedStepIds,
+    }
+
+    const applyProgress = (next: typeof progress) => {
+      progress = next
+      setValues(next.values)
+      setBaseline(next.baseline)
+      setDeletedIngredientIds(next.deletedIngredientIds)
+      setDeletedStepIds(next.deletedStepIds)
+    }
+
     try {
-      const recipe = await createRecipe(toCreateRecipePayload(values))
-      await navigate({ to: '/recipes/$id', params: { id: String(recipe.id) } })
+      progress = await persistRecipeEditRows(recipe.id, progress, applyProgress)
+      applyProgress(progress)
+      const updated = await updateRecipe(recipe.id, toUpdateRecipePayload(progress.values))
+      await navigate({ to: '/recipes/$id', params: { id: String(updated.id) } })
     } catch (error) {
-      if (error instanceof ApiValidationError) {
-        setErrors(normalizeFieldErrors(error.fieldErrors))
-        setSubmitError(error.message)
-      } else if (error instanceof Error && error.message) {
-        setSubmitError(error.message)
-      } else {
-        setSubmitError('保存に失敗しました。時間をおいて再度お試しください。')
-      }
+      applyProgress(progress)
+      handleRequestError(error)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  function handleRequestError(error: unknown) {
+    if (error instanceof ApiValidationError) {
+      setErrors((current) => ({
+        ...current,
+        ...normalizeFieldErrors(error.fieldErrors),
+      }))
+      setSubmitError(error.message)
+    } else if (error instanceof Error && error.message) {
+      setSubmitError(error.message)
+    } else {
+      setSubmitError('保存に失敗しました。時間をおいて再度お試しください。')
     }
   }
 
@@ -133,9 +183,16 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
         </Button>
       </div>
 
-      <h2 className="mb-6 text-2xl font-bold">レシピを作成</h2>
+      <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold">
+        <Pencil className="h-6 w-6 text-primary" aria-hidden="true" />
+        レシピを編集
+      </h2>
 
-      <form className="space-y-6" onSubmit={(event) => void handleSubmit(event)} noValidate>
+      <form
+        className="space-y-6"
+        onSubmit={(event) => void handleSubmit(event)}
+        noValidate
+      >
         <section className="rounded-[var(--radius)] bg-surface p-5 shadow-[var(--shadow)]">
           <h3 className="mb-4 text-lg font-semibold">基本情報</h3>
           <div className="space-y-4">
@@ -154,7 +211,6 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
                 aria-invalid={Boolean(errors.title)}
                 aria-describedby={errors.title ? 'title-error' : undefined}
                 className={inputClass(Boolean(errors.title))}
-                placeholder="例: 醤油ラーメン"
               />
             </Field>
 
@@ -276,7 +332,6 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
                   errors.description ? 'description-error' : undefined
                 }
                 className={inputClass(Boolean(errors.description))}
-                placeholder="レシピの説明（任意）…"
               />
             </Field>
           </div>
@@ -290,29 +345,22 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
               variant="secondary"
               size="sm"
               onClick={() =>
-                updateValues(
-                  {
-                    ...values,
-                    ingredients: [...values.ingredients, createEmptyIngredientRow()],
-                  },
-                  undefined,
-                  { clearErrors: true },
-                )
+                updateValues({
+                  ...values,
+                  ingredients: [...values.ingredients, createEmptyIngredientRow()],
+                })
               }
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
               行を追加
             </Button>
           </div>
-          {errors.ingredients ? (
-            <p className="mb-3 text-sm text-destructive">{errors.ingredients}</p>
-          ) : null}
           <div className="space-y-3">
             <div className="hidden px-3 text-sm font-medium sm:grid sm:grid-cols-[1fr_120px_120px_auto] sm:gap-3">
               <span>材料名 *</span>
               <span>分量 *</span>
               <span>単位 *</span>
-              <span aria-hidden="true" className="w-9" />
+              <span className="sr-only">操作</span>
             </div>
             {values.ingredients.map((ingredient, index) => (
               <div
@@ -326,7 +374,7 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
                   <input
                     type="text"
                     value={ingredient.name}
-                    aria-label="材料名"
+                    aria-label={`材料名 ${index + 1}`}
                     aria-required="true"
                     onChange={(event) => {
                       const next = [...values.ingredients]
@@ -351,7 +399,6 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
                         : undefined
                     }
                     className={inputClass(Boolean(errors[`ingredients.${index}.name`]))}
-                    placeholder="例: 中華麺"
                   />
                 </Field>
                 <Field
@@ -362,7 +409,7 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
                     type="text"
                     inputMode="decimal"
                     value={ingredient.quantity}
-                    aria-label="分量"
+                    aria-label={`分量 ${index + 1}`}
                     aria-required="true"
                     onChange={(event) => {
                       const next = [...values.ingredients]
@@ -403,7 +450,7 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
                 >
                   <UnitInput
                     value={ingredient.unit}
-                    aria-label="単位"
+                    aria-label={`単位 ${index + 1}`}
                     onChange={(unit) => {
                       const next = [...values.ingredients]
                       next[index] = { ...ingredient, unit }
@@ -423,25 +470,14 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
                     }
                   />
                 </Field>
-                <div className="flex items-center justify-end self-center sm:justify-center">
+                <div className="flex items-center justify-end self-center">
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     aria-label={`材料 ${index + 1} を削除`}
                     disabled={values.ingredients.length <= 1}
-                    onClick={() =>
-                      updateValues(
-                        {
-                          ...values,
-                          ingredients: values.ingredients.filter(
-                            (row) => row.key !== ingredient.key,
-                          ),
-                        },
-                        undefined,
-                        { clearErrors: true },
-                      )
-                    }
+                    onClick={() => handleDeleteIngredient(index)}
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                   </Button>
@@ -459,23 +495,16 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
               variant="secondary"
               size="sm"
               onClick={() =>
-                updateValues(
-                  {
-                    ...values,
-                    steps: [...values.steps, createEmptyStepRow()],
-                  },
-                  undefined,
-                  { clearErrors: true },
-                )
+                updateValues({
+                  ...values,
+                  steps: [...values.steps, createEmptyStepRow()],
+                })
               }
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
               行を追加
             </Button>
           </div>
-          {errors.steps ? (
-            <p className="mb-3 text-sm text-destructive">{errors.steps}</p>
-          ) : null}
           <div className="space-y-3">
             {values.steps.map((step, index) => (
               <div
@@ -522,7 +551,6 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
                           : undefined
                       }
                       className={inputClass(Boolean(errors[`steps.${index}.body`]))}
-                      placeholder="例: スープを作る"
                     />
                   </Field>
                 </div>
@@ -533,16 +561,7 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
                   className="shrink-0"
                   aria-label={`手順 ${index + 1} を削除`}
                   disabled={values.steps.length <= 1}
-                  onClick={() =>
-                    updateValues(
-                      {
-                        ...values,
-                        steps: values.steps.filter((row) => row.key !== step.key),
-                      },
-                      undefined,
-                      { clearErrors: true },
-                    )
-                  }
+                  onClick={() => handleDeleteStep(index)}
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
@@ -585,7 +604,9 @@ export function RecipeCreatePage({ categories }: RecipeCreatePageProps) {
             編集を続ける
           </Button>
           <Button type="button" asChild>
-            <Link to="/recipes">一覧へ戻る</Link>
+            <Link to="/recipes/$id" params={{ id: String(recipe.id) }}>
+              詳細へ戻る
+            </Link>
           </Button>
         </div>
       </dialog>

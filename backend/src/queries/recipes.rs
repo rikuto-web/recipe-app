@@ -5,6 +5,8 @@ use sqlx::{Row, SqlitePool};
 use super::query_sql;
 
 const INSERT: &str = query_sql!("recipes/insert.sql");
+const UPDATE: &str = query_sql!("recipes/update.sql");
+const TOUCH_UPDATED_AT: &str = query_sql!("recipes/touch_updated_at.sql");
 const GET_BY_ID: &str = query_sql!("recipes/get_by_id.sql");
 const LIST_NEWEST: &str = query_sql!("recipes/list_newest.sql");
 const LIST_COOK_TIME_ASC: &str = query_sql!("recipes/list_cook_time_asc.sql");
@@ -81,6 +83,50 @@ where
         .bind(difficulty)
         .bind(created_at)
         .bind(updated_at)
+        .execute(executor)
+        .await
+}
+
+/// 親情報のみ UPDATE する。
+pub async fn update<'e, E>(
+    executor: E,
+    id: i64,
+    category_id: i64,
+    title: &str,
+    description: &str,
+    servings: i32,
+    cook_time_minutes: i32,
+    difficulty: i32,
+    updated_at: &str,
+) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+{
+    sqlx::query(UPDATE)
+        .bind(category_id)
+        .bind(title)
+        .bind(description)
+        .bind(servings)
+        .bind(cook_time_minutes)
+        .bind(difficulty)
+        .bind(updated_at)
+        .bind(id)
+        .execute(executor)
+        .await
+}
+
+/// `updated_at` だけ更新する（子行の追加・更新・削除時）。
+pub async fn touch_updated_at<'e, E>(
+    executor: E,
+    id: i64,
+    updated_at: &str,
+) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+{
+    sqlx::query(TOUCH_UPDATED_AT)
+        .bind(updated_at)
+        .bind(id)
         .execute(executor)
         .await
 }
