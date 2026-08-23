@@ -1,11 +1,19 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   RecipeDetailPage,
   RecipeNotFound,
 } from '#/components/RecipeDetailPage'
 import type { RecipeDetail } from '#/lib/api'
+
+vi.mock('#/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('#/lib/api')>()
+  return {
+    ...actual,
+    deleteRecipe: vi.fn(),
+  }
+})
 
 const recipe: RecipeDetail = {
   id: 1,
@@ -53,8 +61,12 @@ describe('RecipeDetailPage', () => {
       'href',
       '/recipes/1/edit',
     )
+    expect(
+      screen.getByRole('button', { name: '醤油ラーメン を削除' }),
+    ).toBeInTheDocument()
     expect(document.querySelector('.lucide-arrow-left')).not.toBeNull()
     expect(document.querySelector('.lucide-pencil')).not.toBeNull()
+    expect(document.querySelector('.lucide-trash-2')).not.toBeNull()
     expect(document.querySelector('.lucide-clock')).not.toBeNull()
     expect(document.querySelector('.lucide-users')).not.toBeNull()
     expect(document.querySelector('.lucide-carrot')).not.toBeNull()

@@ -7,6 +7,7 @@ import {
   createRecipe,
   createStep,
   deleteIngredient,
+  deleteRecipe,
   deleteStep,
   loadRecipe,
   loadRecipeList,
@@ -428,5 +429,17 @@ describe('ingredient and step row APIs', () => {
     expect(urls[0]?.[1]).toBe('POST')
     expect(urls[1]?.[0]).toMatch(/\/api\/recipes\/1\/steps\/20$/)
     expect(urls[1]?.[1]).toBe('DELETE')
+  })
+
+  it('deletes a recipe', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ message: 'deleted' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await deleteRecipe(1)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/recipes\/1$/),
+      expect.objectContaining({ method: 'DELETE' }),
+    )
   })
 })

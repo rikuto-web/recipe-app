@@ -17,6 +17,8 @@ use crate::queries::ingredients;
 use crate::queries::recipes::{self, RecipeListFilter, RecipeSort};
 use crate::queries::steps;
 
+const MAX_COOK_TIME_FILTER_STEP_MINUTES: i32 = 10;
+
 #[derive(Debug, Deserialize)]
 struct RecipeListQuery {
     q: Option<String>,
@@ -573,6 +575,18 @@ async fn delete_step(
     Ok((StatusCode::OK, Json(DeletedResponse { message: "deleted" })))
 }
 
+async fn delete_recipe(
+    State(pool): State<SqlitePool>,
+    Path(raw_id): Path<String>,
+) -> Result<(StatusCode, Json<DeletedResponse>), AppError> {
+    let recipe_id = parse_path_integer("id", raw_id)?;
+    require_recipe(&pool, recipe_id).await?;
+
+    recipes::delete(&pool, recipe_id).await?;
+
+    Ok((StatusCode::OK, Json(DeletedResponse { message: "deleted" })))
+}
+
 async fn require_recipe(pool: &SqlitePool, id: i64) -> Result<(), AppError> {
     if recipes::get_by_id(pool, id).await?.is_none() {
         return Err(AppError::not_found("レシピが見つかりません"));
@@ -859,6 +873,13 @@ fn utc_now_iso8601() -> String {
     Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
+fn normalize_max_cook_time_filter(minutes: i32) -> i32 {
+    let snapped = ((minutes + MAX_COOK_TIME_FILTER_STEP_MINUTES / 2)
+        / MAX_COOK_TIME_FILTER_STEP_MINUTES)
+        * MAX_COOK_TIME_FILTER_STEP_MINUTES;
+    snapped.max(MAX_COOK_TIME_FILTER_STEP_MINUTES)
+}
+
 fn parse_filter(query: RecipeListQuery) -> Result<RecipeListFilter, AppError> {
     let q = query
         .q
@@ -885,15 +906,18 @@ fn parse_filter(query: RecipeListQuery) -> Result<RecipeListFilter, AppError> {
         }
     }
 
-    let max_cook_time = parse_optional_integer("max_cook_time", query.max_cook_time)?;
-    if let Some(max_cook_time) = max_cook_time {
-        if max_cook_time < 0 {
+    let max_cook_time_raw = parse_optional_integer("max_cook_time", query.max_cook_time)?;
+    let max_cook_time = if let Some(raw) = max_cook_time_raw {
+        if raw < 0 {
             return Err(AppError::validation(
                 "max_cook_time",
                 "調理時間上限は 0 以上の整数です",
             ));
         }
-    }
+        Some(normalize_max_cook_time_filter(raw))
+    } else {
+        None
+    };
 
     let sort = match query.sort.as_deref() {
         None | Some("") | Some("newest") => RecipeSort::Newest,
@@ -943,7 +967,10 @@ where
 pub fn router() -> Router<SqlitePool> {
     Router::new()
         .route("/api/recipes", get(list_recipes).post(create_recipe))
-        .route("/api/recipes/{id}", get(get_recipe).put(update_recipe))
+        .route(
+            "/api/recipes/{id}",
+            get(get_recipe).put(update_recipe).delete(delete_recipe),
+        )
         .route(
             "/api/recipes/{id}/ingredients",
             axum::routing::post(create_ingredient),

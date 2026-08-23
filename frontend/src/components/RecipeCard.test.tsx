@@ -1,8 +1,17 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 
 import { RecipeCard } from '#/components/RecipeCard'
+import { deleteRecipe } from '#/lib/api'
 import type { RecipeSummary } from '#/lib/api'
+
+vi.mock('#/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('#/lib/api')>()
+  return {
+    ...actual,
+    deleteRecipe: vi.fn(),
+  }
+})
 
 const recipe: RecipeSummary = {
   id: 1,
@@ -32,5 +41,24 @@ describe('RecipeCard', () => {
     expect(document.querySelector('.lucide-clock')).not.toBeNull()
     expect(document.querySelector('.lucide-users')).not.toBeNull()
     expect(document.querySelector('.lucide-tag')).not.toBeNull()
+  })
+
+  it('shows a delete button when onDeleted is provided', () => {
+    const onDeleted = vi.fn()
+    vi.mocked(deleteRecipe).mockResolvedValue()
+
+    render(<RecipeCard recipe={recipe} onDeleted={onDeleted} />)
+
+    expect(
+      screen.getByRole('button', { name: '醤油ラーメン を削除' }),
+    ).toBeInTheDocument()
+  })
+
+  it('does not show a delete button without onDeleted', () => {
+    render(<RecipeCard recipe={recipe} />)
+
+    expect(
+      screen.queryByRole('button', { name: '醤油ラーメン を削除' }),
+    ).not.toBeInTheDocument()
   })
 })

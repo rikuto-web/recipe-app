@@ -4,6 +4,18 @@ import { cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { afterEach, vi } from 'vitest'
 
+if (!HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.open = true
+  }
+}
+
+if (!HTMLDialogElement.prototype.close) {
+  HTMLDialogElement.prototype.close = function close() {
+    this.open = false
+  }
+}
+
 vi.mock('@tanstack/react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-router')>()
 
@@ -29,9 +41,12 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
     return createElement('a', { href, className, ...rest }, children)
   }
 
+  const navigate = vi.fn()
+
   return {
     ...actual,
     Link: MockLink,
+    useNavigate: () => navigate,
   }
 })
 

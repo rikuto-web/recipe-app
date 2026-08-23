@@ -17,6 +17,7 @@ type RecipeListPageProps = {
   categories: Category[]
   filters: RecipeSearch
   onSubmit: (filters: RecipeSearch) => void
+  onRecipeDeleted?: () => void
 }
 
 export function RecipeListPage({
@@ -25,6 +26,7 @@ export function RecipeListPage({
   categories,
   filters,
   onSubmit,
+  onRecipeDeleted,
 }: RecipeListPageProps) {
   const emptyTitle = hasActiveFilters(filters)
     ? '条件に一致するレシピがありません'
@@ -47,7 +49,11 @@ export function RecipeListPage({
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
           {recipes.map((recipe) => (
-            <RecipeCard key={recipe.id} recipe={recipe} />
+            <RecipeCard
+              key={recipe.id}
+              recipe={recipe}
+              onDeleted={onRecipeDeleted}
+            />
           ))}
         </div>
       )}

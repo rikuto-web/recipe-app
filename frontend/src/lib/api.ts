@@ -344,6 +344,16 @@ export async function deleteStep(
   }
 }
 
+export async function deleteRecipe(recipeId: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/recipes/${recipeId}`, {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    await readApiError(response)
+  }
+}
+
 export async function loadRecipeEditData(id: string | number): Promise<{
   recipe: RecipeDetail
   categories: Category[]

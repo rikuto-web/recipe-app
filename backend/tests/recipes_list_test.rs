@@ -141,6 +141,23 @@ async fn get_recipes_filters_by_max_cook_time() {
 }
 
 #[tokio::test]
+async fn get_recipes_normalizes_max_cook_time_to_ten_minute_steps() {
+    let (status_round_up, json_round_up) = get_json("/api/recipes?max_cook_time=25").await;
+    let (_status_exact, json_exact) = get_json("/api/recipes?max_cook_time=30").await;
+
+    assert_eq!(status_round_up, StatusCode::OK);
+    assert_eq!(json_round_up["total"], json_exact["total"]);
+    assert_eq!(titles(&json_round_up), titles(&json_exact));
+
+    let (status_round_down, json_round_down) = get_json("/api/recipes?max_cook_time=23").await;
+    let (_status_twenty, json_twenty) = get_json("/api/recipes?max_cook_time=20").await;
+
+    assert_eq!(status_round_down, StatusCode::OK);
+    assert_eq!(json_round_down["total"], json_twenty["total"]);
+    assert_eq!(titles(&json_round_down), vec!["鮭のムニエル"]);
+}
+
+#[tokio::test]
 async fn get_recipes_sorts_by_cook_time_asc() {
     let (status, json) = get_json("/api/recipes?sort=cook_time_asc").await;
 
