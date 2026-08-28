@@ -69,7 +69,7 @@ describe('loadRecipeList', () => {
     const urls = fetchMock.mock.calls.map(([input]) => String(input))
     const recipesUrl = urls.find((url) => url.includes('/api/recipes'))
     expect(recipesUrl).toBeDefined()
-    const parsed = new URL(recipesUrl ?? '')
+    const parsed = new URL(recipesUrl ?? '', 'http://localhost')
     expect(parsed.searchParams.get('q')).toBe('ラーメン')
     expect(parsed.searchParams.get('category_id')).toBe('3')
     expect(urls.some((url) => url.endsWith('/api/categories'))).toBe(true)

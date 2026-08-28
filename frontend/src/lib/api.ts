@@ -11,8 +11,19 @@ import type {
   UpdateRecipePayload,
 } from '#/lib/recipeFormValidation'
 
-export const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+function resolveApiBase(): string {
+  const configured = import.meta.env.VITE_API_BASE_URL
+  if (configured !== undefined && configured !== '') {
+    return configured
+  }
+  // SSR (Node) では相対 URL が使えないため、nginx 経由の同一オリジンを使う。
+  if (typeof window === 'undefined') {
+    return process.env.SSR_API_BASE ?? 'http://127.0.0.1'
+  }
+  return ''
+}
+
+export const API_BASE = resolveApiBase()
 
 export class ApiError extends Error {
   readonly status: number
