@@ -60,11 +60,19 @@ export function normalizeNumericInput(value: string): string {
     .replace(/．/g, '.')
 }
 
-export function createEmptyIngredientRow(key = crypto.randomUUID()): IngredientFormRow {
+/** 材料・手順行の React key。HTTP 環境では randomUUID が使えないため fallback する。 */
+function createRowKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+export function createEmptyIngredientRow(key = createRowKey()): IngredientFormRow {
   return { key, name: '', quantity: '', unit: '' }
 }
 
-export function createEmptyStepRow(key = crypto.randomUUID()): StepFormRow {
+export function createEmptyStepRow(key = createRowKey()): StepFormRow {
   return { key, body: '' }
 }
 

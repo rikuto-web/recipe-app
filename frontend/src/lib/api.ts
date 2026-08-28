@@ -11,8 +11,35 @@ import type {
   UpdateRecipePayload,
 } from '#/lib/recipeFormValidation'
 
-export const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+function getApiBase(): string {
+  const configured = import.meta.env.VITE_API_BASE_URL
+  if (configured !== undefined && configured !== '') {
+    return configured
+  }
+  // SSR (Node) では相対 URL が使えないため、nginx 経由の同一オリジンを使う。
+  if (typeof window === 'undefined') {
+    return process.env.SSR_API_BASE ?? 'http://127.0.0.1'
+  }
+  return ''
+}
+
+const API_FETCH_TIMEOUT_MS = 8_000
+
+function createFetchSignal(init?: RequestInit): AbortSignal | undefined {
+  if (init?.signal) return init.signal
+  if (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal) {
+    return AbortSignal.timeout(API_FETCH_TIMEOUT_MS)
+  }
+  return undefined
+}
+
+function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const signal = createFetchSignal(init)
+  return fetch(input, {
+    ...init,
+    ...(signal ? { signal } : {}),
+  })
+}
 
 export class ApiError extends Error {
   readonly status: number
@@ -107,12 +134,12 @@ export async function loadRecipeList(
 ): Promise<RecipeListData> {
   const query = toRecipeQueryString(search)
   const recipesUrl = query
-    ? `${API_BASE}/api/recipes?${query}`
-    : `${API_BASE}/api/recipes`
+    ? `${getApiBase()}/api/recipes?${query}`
+    : `${getApiBase()}/api/recipes`
 
   const [recipesRes, categoriesRes] = await Promise.all([
-    fetch(recipesUrl),
-    fetch(`${API_BASE}/api/categories`),
+    apiFetch(recipesUrl),
+    apiFetch(`${getApiBase()}/api/categories`),
   ])
 
   if (!recipesRes.ok) {
@@ -134,7 +161,7 @@ export async function loadRecipeList(
 }
 
 export async function loadRecipe(id: string | number): Promise<RecipeDetail> {
-  const response = await fetch(`${API_BASE}/api/recipes/${id}`)
+  const response = await apiFetch(`${getApiBase()}/api/recipes/${id}`)
 
   if (response.status === 404) {
     throw new ApiError(404, 'レシピが見つかりません')
@@ -148,7 +175,7 @@ export async function loadRecipe(id: string | number): Promise<RecipeDetail> {
 }
 
 export async function loadCategories(): Promise<Category[]> {
-  const response = await fetch(`${API_BASE}/api/categories`)
+  const response = await apiFetch(`${getApiBase()}/api/categories`)
 
   if (!response.ok) {
     await readApiError(response)
@@ -201,7 +228,7 @@ async function readApiError(response: Response): Promise<never> {
 export async function createRecipe(
   payload: CreateRecipePayload,
 ): Promise<RecipeDetail> {
-  const response = await fetch(`${API_BASE}/api/recipes`, {
+  const response = await apiFetch(`${getApiBase()}/api/recipes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -218,7 +245,7 @@ export async function updateRecipe(
   id: number,
   payload: UpdateRecipePayload,
 ): Promise<RecipeDetail> {
-  const response = await fetch(`${API_BASE}/api/recipes/${id}`, {
+  const response = await apiFetch(`${getApiBase()}/api/recipes/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -235,8 +262,8 @@ export async function createIngredient(
   recipeId: number,
   payload: IngredientWritePayload,
 ): Promise<Ingredient> {
-  const response = await fetch(
-    `${API_BASE}/api/recipes/${recipeId}/ingredients`,
+  const response = await apiFetch(
+    `${getApiBase()}/api/recipes/${recipeId}/ingredients`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -256,8 +283,8 @@ export async function updateIngredient(
   ingredientId: number,
   payload: IngredientPatchPayload,
 ): Promise<Ingredient> {
-  const response = await fetch(
-    `${API_BASE}/api/recipes/${recipeId}/ingredients/${ingredientId}`,
+  const response = await apiFetch(
+    `${getApiBase()}/api/recipes/${recipeId}/ingredients/${ingredientId}`,
     {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -276,8 +303,8 @@ export async function deleteIngredient(
   recipeId: number,
   ingredientId: number,
 ): Promise<void> {
-  const response = await fetch(
-    `${API_BASE}/api/recipes/${recipeId}/ingredients/${ingredientId}`,
+  const response = await apiFetch(
+    `${getApiBase()}/api/recipes/${recipeId}/ingredients/${ingredientId}`,
     { method: 'DELETE' },
   )
 
@@ -290,7 +317,7 @@ export async function createStep(
   recipeId: number,
   payload: StepWritePayload,
 ): Promise<RecipeStep> {
-  const response = await fetch(`${API_BASE}/api/recipes/${recipeId}/steps`, {
+  const response = await apiFetch(`${getApiBase()}/api/recipes/${recipeId}/steps`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -308,8 +335,8 @@ export async function updateStep(
   stepId: number,
   payload: StepPatchPayload,
 ): Promise<RecipeStep> {
-  const response = await fetch(
-    `${API_BASE}/api/recipes/${recipeId}/steps/${stepId}`,
+  const response = await apiFetch(
+    `${getApiBase()}/api/recipes/${recipeId}/steps/${stepId}`,
     {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -328,8 +355,8 @@ export async function deleteStep(
   recipeId: number,
   stepId: number,
 ): Promise<void> {
-  const response = await fetch(
-    `${API_BASE}/api/recipes/${recipeId}/steps/${stepId}`,
+  const response = await apiFetch(
+    `${getApiBase()}/api/recipes/${recipeId}/steps/${stepId}`,
     { method: 'DELETE' },
   )
 
@@ -339,7 +366,7 @@ export async function deleteStep(
 }
 
 export async function deleteRecipe(recipeId: number): Promise<void> {
-  const response = await fetch(`${API_BASE}/api/recipes/${recipeId}`, {
+  const response = await apiFetch(`${getApiBase()}/api/recipes/${recipeId}`, {
     method: 'DELETE',
   })
 
