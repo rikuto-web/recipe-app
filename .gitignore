@@ -1,5 +1,12 @@
 # Dependencies
 node_modules/
+.pnpm-store/
+.pnpm-debug.log
+
+# SSH keys (GitHub / OCI deploy)
+.ssh/
+id_ed25519_github
+id_ed25519_github.pub
 
 # Build
 dist/

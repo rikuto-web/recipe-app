@@ -7,11 +7,12 @@
 use std::net::SocketAddr;
 
 use axum::Router;
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use axum::http::HeaderValue;
 use sqlx::SqlitePool;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 pub mod config;
 pub mod db;
@@ -19,7 +20,7 @@ pub mod error;
 pub mod queries;
 pub mod routes;
 
-pub use config::Config;
+pub use config::{Config, DEFAULT_CORS_ORIGIN, parse_cors_origins};
 
 /// SQLite 接続プールを作成し、未適用マイグレーションを実行する。
 pub async fn build_pool(database_url: &str) -> Result<SqlitePool, sqlx::Error> {
@@ -38,19 +39,17 @@ pub async fn build_pool(database_url: &str) -> Result<SqlitePool, sqlx::Error> {
 }
 
 /// HTTP アプリケーションを組み立てる。
-/// 開発時 FE（:5173）からのアクセスを許可する CORS を全ルートに適用する。
-pub fn build_app(pool: SqlitePool) -> Router {
+/// 指定オリジンへの CORS を全ルートに適用する。
+pub fn build_app(pool: SqlitePool, cors_origins: Vec<HeaderValue>) -> Router {
     let cors = CorsLayer::new()
-        .allow_origin([
-            "http://localhost:5173"
-                .parse()
-                .expect("valid localhost origin"),
-        ])
+        .allow_origin(cors_origins)
         .allow_methods(Any)
         .allow_headers(Any);
 
     Router::new()
         .merge(routes::health::router())
+        .merge(routes::categories::router())
+        .merge(routes::recipes::router())
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(pool)
@@ -61,7 +60,7 @@ pub async fn run(config: Config) -> Result<(), Box<dyn std::error::Error>> {
     init_tracing();
 
     let pool = build_pool(&config.database_url).await?;
-    let app = build_app(pool);
+    let app = build_app(pool, config.cors_origins());
     let addr: SocketAddr = format!("{}:{}", config.host, config.port)
         .parse()
         .map_err(|error| format!("invalid HOST/PORT: {error}"))?;
@@ -117,8 +116,7 @@ pub mod test_utils {
     use super::*;
 
     pub async fn test_pool() -> SqlitePool {
-        let options = sqlite_connect_options("sqlite::memory:")
-            .expect("valid sqlite memory url");
+        let options = sqlite_connect_options("sqlite::memory:").expect("valid sqlite memory url");
 
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
@@ -134,6 +132,9 @@ pub mod test_utils {
     }
 
     pub async fn test_app() -> Router {
-        build_app(test_pool().await)
+        build_app(
+            test_pool().await,
+            parse_cors_origins(DEFAULT_CORS_ORIGIN),
+        )
     }
 }

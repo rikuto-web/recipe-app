@@ -3,6 +3,7 @@
  * - ロゴ: Lucide `ChefHat`（絵文字・★テキストは使わない）
  * - 最大幅 960px、Pattern A のウォーム配色
  */
+import { Link } from '@tanstack/react-router'
 import { ChefHat, Plus } from 'lucide-react'
 
 import { Button } from '#/components/ui/button'
@@ -16,7 +17,7 @@ export function AppShell({ children }: AppShellProps) {
     <div className="min-h-screen bg-bg text-text">
       <div className="mx-auto max-w-[960px] px-5 pb-12 pt-4">
         <header className="mb-6 flex items-center justify-between border-b-2 border-primary-light pb-6">
-          <div className="flex items-center gap-2">
+          <Link to="/recipes" className="flex items-center gap-2 text-inherit no-underline">
             <ChefHat
               className="h-7 w-7 text-primary"
               aria-hidden="true"
@@ -24,11 +25,12 @@ export function AppShell({ children }: AppShellProps) {
             <h1 className="text-xl font-bold">
               <span className="text-primary">レシピ</span>管理
             </h1>
-          </div>
-          {/* VS-03 で `/recipes/new` へ接続する */}
-          <Button type="button" disabled aria-label="新規作成（準備中）">
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            新規作成
+          </Link>
+          <Button type="button" asChild>
+            <Link to="/recipes/new" aria-label="新規作成">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              新規作成
+            </Link>
           </Button>
         </header>
         <main>{children}</main>

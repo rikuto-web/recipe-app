@@ -6,8 +6,9 @@ export function getRouter() {
   const router = createTanStackRouter({
     routeTree,
     scrollRestoration: true,
-    defaultPreload: 'intent',
-    defaultPreloadStaleTime: 0,
+    // Micro VM では intent preload が API 未復旧時にエラー状態を先に作りやすい
+    defaultPreload: false,
+    defaultPreloadStaleTime: 30_000,
   })
 
   return router

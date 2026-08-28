@@ -2,9 +2,10 @@
 INSERT INTO recipes (
   category_id,
   title,
+  description,
   servings,
   cook_time_minutes,
   difficulty,
   created_at,
   updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)

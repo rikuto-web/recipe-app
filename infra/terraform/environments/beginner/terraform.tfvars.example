@@ -1,0 +1,33 @@
+# Copy to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored.
+
+tenancy_ocid     = "ocid1.tenancy.oc1..xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+user_ocid        = "ocid1.user.oc1..xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+fingerprint      = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+private_key_path = "~/.oci/oci_api_key.pem"
+
+# ホームリージョン（Identity API）。テナンシー登録時のリージョンに合わせる。
+home_region = "ap-osaka-1"
+
+# VCN / VM を置くリージョン。在庫不足時は ap-seoul-1 等に変更可（要リージョン購読）。
+region = "ap-osaka-1"
+
+# Optional: use an existing compartment instead of creating beginner-recipe-app.
+# compartment_ocid = "ocid1.compartment.oc1..xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+project_prefix = "beginner"
+
+# Always Free: VM.Standard.E2.1.Micro (x86, max 2) or VM.Standard.A1.Flex (Ampere)
+# compute_shape = "VM.Standard.E2.1.Micro"
+
+# Restrict SSH to your public IP (/32 recommended).
+admin_cidr = "203.0.113.10/32"
+
+# Paste the contents of your public key file (e.g. ~/.ssh/id_ed25519.pub).
+ssh_public_key = "ssh-ed25519 AAAA...you@example.com"
+
+# Optional overrides (defaults match docs/07-architecture.md Always Free minimum).
+# fe_ocpus          = 1
+# fe_memory_in_gbs  = 3
+# api_ocpus         = 1
+# api_memory_in_gbs = 3

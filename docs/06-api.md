@@ -80,7 +80,7 @@
 | q | string | 否 | タイトル部分一致 |
 | category_id | integer | 否 | カテゴリ ID |
 | difficulty | integer | 否 | 1〜5（星の数） |
-| max_cook_time | integer | 否 | 調理時間上限（分） |
+| max_cook_time | integer | 否 | 調理時間上限（分）。10 分単位（最小 10）に正規化して解釈する |
 | sort | string | 否 | `newest`（既定）, `cook_time_asc` |
 
 ### レスポンス 200
@@ -166,7 +166,19 @@
 
 ### レスポンス 400
 
-必須欠落、件数 0、不正な `category_id` / `difficulty`（1〜5 以外）等。
+必須欠落、件数 0、不正な `category_id` / `difficulty`（1〜5 以外）、`cook_time_minutes` が 10 未満または 10 分単位でない等。`§3.2` の `VALIDATION_ERROR` 形式。ネストフィールドは `ingredients[0].quantity` 形式。
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "入力内容に誤りがあります",
+    "details": [
+      { "field": "steps[0].body", "message": "手順本文は必須です" }
+    ]
+  }
+}
+```
 
 ## 8. PUT /api/recipes/{id}
 
@@ -224,6 +236,8 @@
 
 ### DELETE /api/recipes/{id}/ingredients/{ingredient_id}
 
+**レスポンス 200** … `{ "message": "deleted" }`
+
 **制約**: 削除後に材料が 0 件になる場合は 400（最低 1 材料必須）。
 
 ## 10. 手順の行単位 API
@@ -265,7 +279,7 @@
 
 ### DELETE /api/recipes/{id}/steps/{step_id}
 
-**レスポンス 200** または **204**
+**レスポンス 200** … `{ "message": "deleted" }`
 
 削除後、残りの手順の `step_number` を詰める。
 
@@ -297,7 +311,7 @@
 | description | 任意、0〜2000 文字 |
 | category_id | 必須、存在する categories.id |
 | servings | 必須、1 以上の整数 |
-| cook_time_minutes | 必須、0 以上の整数 |
+| cook_time_minutes | 必須、10 以上の整数、10 分単位 |
 | difficulty | 必須、1〜5 の整数 |
 | ingredients（作成時） | 1 件以上。各行: name 必須、quantity > 0、unit 必須（1〜20 文字） |
 | ingredients（行単位更新） | name / quantity / unit / sort_order。削除後 0 件は不可 |
@@ -332,6 +346,8 @@ sequenceDiagram
 
 ## 15. データフロー（材料のピンポイント更新）
 
+編集画面（SC-04）ではフッター保存 1 回で変更行をまとめて送る。API は 1 行ずつ処理する。
+
 ```mermaid
 sequenceDiagram
   participant Browser as ブラウザ
@@ -339,11 +355,11 @@ sequenceDiagram
   participant API as Rust_Axum
   participant DB as SQLite
 
-  Browser->>FE: 材料1行の保存
+  Browser->>FE: フッター保存（材料行を変更）
   FE->>API: PATCH /api/recipes/{id}/ingredients/{ingredient_id}
   API->>DB: UPDATE ingredients
   API-->>FE: 200 + 更新行
-  FE-->>Browser: 当該行のみ反映
+  FE-->>Browser: 保存成功後に詳細へ遷移
 ```
 
 ## 16. データフロー（手順のピンポイント更新）
@@ -355,12 +371,12 @@ sequenceDiagram
   participant API as Rust_Axum
   participant DB as SQLite
 
-  Browser->>FE: 手順1行の保存
+  Browser->>FE: フッター保存（手順行を変更）
   FE->>API: PATCH /api/recipes/{id}/steps/{step_id}
   API->>API: バリデーション
   API->>DB: UPDATE steps
   API-->>FE: 200 + 更新行
-  FE-->>Browser: 当該行のみ反映
+  FE-->>Browser: 保存成功後に詳細へ遷移
 ```
 
 ## 17. CORS（開発）
