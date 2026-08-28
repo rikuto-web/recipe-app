@@ -1,6 +1,6 @@
 # Terraform 初級環境（OCI Always Free）
 
-[VS-07](https://github.com/rikuto-web/recipe-app/issues/28) / [システム構成 §3, §5](../../../docs/07-architecture.md) に基づき、fe-vm + api-vm のネットワークと Compute をコード化します。
+[VS-07](https://github.com/rikuto-web/recipe-app/issues/28) / [システム構成 §3, §5](../../../docs/07-architecture.md) に基づき、**1台の app-vm**（nginx + SSR + Rust API）のネットワークと Compute をコード化します。
 
 ## 作成されるリソース
 
@@ -8,9 +8,8 @@
 | --- | --- |
 | Compartment | `beginner-recipe-app`（既存 compartment を指定すれば作成しない） |
 | VCN | `10.0.0.0/16`、Internet Gateway、パブリックサブネット |
-| fe-vm | Ampere A1 Flex（既定 1 OCPU / 3 GB）または **E2.1.Micro**（x86 / ~1 GB） |
-| api-vm | 同上 |
-| NSG | fe: 80/443 公開、22 は管理者 IP のみ / api: 8080 は fe-nsg からのみ、22 は管理者 IP のみ |
+| app-vm | Ampere A1 Flex（既定 1 OCPU / 3 GB）または **E2.1.Micro**（x86 / ~1 GB）。nginx・Node SSR・Rust API を同一 VM に配置 |
+| NSG | 80/443 公開、22 は管理者 IP のみ。API は localhost のみ（8080 は外部非公開） |
 
 ## 手動で必要な作業（Terraform では完結しない）
 
@@ -41,7 +40,7 @@ terraform apply
 | 項目 | Terraform |
 | --- | --- |
 | Compartment / VCN / Subnet / IGW / Route Table | ✓ |
-| Compute Instance（fe-vm, api-vm） | ✓ |
+| Compute Instance（app-vm） | ✓ |
 | NSG とセキュリティルール | ✓ |
 | SSH 鍵のインスタンス注入（metadata） | ✓ |
 | OCI アカウント作成 | ✗ |
@@ -56,8 +55,8 @@ terraform apply
 
 ```bash
 terraform output fe_vm_public_ip
-terraform output api_vm_private_ip
 ssh -i ~/.ssh/id_ed25519 opc@<fe_vm_public_ip>
+# fe_vm_public_ip = app-vm の公開 IP（出力名は後方互換のため fe_* のまま）
 ```
 
 Oracle Linux のデフォルトユーザーは `opc` です。
@@ -92,5 +91,5 @@ terraform apply
 ## 注意
 
 - `terraform.tfvars` と `*.tfstate` はコミットしない（`.gitignore` 済み）
-- Always Free 合計 **2 OCPU / 12 GB**（Ampere A1 Flex）または **x86 Micro 最大2台**（別枠・各 ~1 GB）
+- Always Free: Ampere A1 Flex **合計 2 OCPU / 12 GB**、または **x86 Micro 最大2台**（別枠・各 ~1 GB）。初級は **Micro 1台**（SSR+API 同居で RAM はタイト）
 - Ampere 在庫不足時は `compute_shape = "VM.Standard.E2.1.Micro"`（完全無料・x86 枠）

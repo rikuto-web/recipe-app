@@ -66,22 +66,14 @@ ensure_swap() {
   fi'
 }
 
-configure_api_vm() {
-  local api_ip="$1"
+configure_app_vm() {
+  local app_ip="$1"
   if is_micro_shape; then
-    ensure_swap "$api_ip"
+    ensure_swap "$app_ip"
   fi
-  ssh "${SSH_OPTS[@]}" "opc@$api_ip" 'sudo firewall-cmd --permanent --add-port=8080/tcp && sudo firewall-cmd --reload'
-}
-
-configure_fe_vm() {
-  local fe_ip="$1"
-  if is_micro_shape; then
-    ensure_swap "$fe_ip"
-  fi
-  ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'sudo firewall-cmd --permanent --add-service=http && sudo firewall-cmd --reload'
-  ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'sudo setsebool -P httpd_can_network_connect 1'
-  ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'python3 - <<"PY"
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'sudo firewall-cmd --permanent --add-service=http && sudo firewall-cmd --reload'
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'sudo setsebool -P httpd_can_network_connect 1'
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'python3 - <<"PY"
 from pathlib import Path
 text = Path("/etc/nginx/nginx.conf").read_text()
 out, skip, depth = [], 0, 0
@@ -101,77 +93,67 @@ sudo cp /tmp/nginx.conf /etc/nginx/nginx.conf'
 }
 
 deploy_api() {
-  local api_ip="$1"
+  local app_ip="$1"
   local bin="${DEPLOY_BACKEND_BIN:-$ROOT/backend/target/release/recipe-backend}"
 
-  echo "==> deploy api-vm ($api_ip)"
-  ssh "${SSH_OPTS[@]}" "opc@$api_ip" 'sudo mkdir -p /opt/recipe-app/data && sudo chown -R opc:opc /opt/recipe-app'
-  scp "${SSH_OPTS[@]}" "$bin" "opc@$api_ip:/opt/recipe-app/recipe-backend"
-  scp "${SSH_OPTS[@]}" "$ROOT/infra/deploy/recipe-backend.service" "opc@$api_ip:/tmp/recipe-backend.service"
+  echo "==> deploy backend on app-vm ($app_ip)"
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'sudo mkdir -p /opt/recipe-app/data && sudo chown -R opc:opc /opt/recipe-app'
+  scp "${SSH_OPTS[@]}" "$bin" "opc@$app_ip:/opt/recipe-app/recipe-backend"
+  scp "${SSH_OPTS[@]}" "$ROOT/infra/deploy/recipe-backend.service" "opc@$app_ip:/tmp/recipe-backend.service"
 
-  ssh "${SSH_OPTS[@]}" "opc@$api_ip" 'sudo mv /tmp/recipe-backend.service /etc/systemd/system/recipe-backend.service && sudo systemctl daemon-reload && sudo systemctl enable --now recipe-backend && sudo systemctl restart recipe-backend'
-  configure_api_vm "$api_ip"
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'sudo mv /tmp/recipe-backend.service /etc/systemd/system/recipe-backend.service && sudo systemctl daemon-reload && sudo systemctl enable --now recipe-backend && sudo systemctl restart recipe-backend'
 }
 
 deploy_fe_micro() {
-  local fe_ip="$1"
-  local api_private_ip="$2"
+  local app_ip="$1"
 
-  ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'sudo mkdir -p /opt/recipe-app/frontend && sudo chown -R opc:opc /opt/recipe-app'
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'sudo mkdir -p /opt/recipe-app/frontend && sudo chown -R opc:opc /opt/recipe-app'
 
   rsync -az --delete -e "ssh ${SSH_OPTS[*]}" \
-    "$ROOT/frontend/dist/" "opc@$fe_ip:/opt/recipe-app/frontend/dist/"
-  scp "${SSH_OPTS[@]}" "$ROOT/frontend/package.json" "opc@$fe_ip:/opt/recipe-app/frontend/package.json"
-  scp "${SSH_OPTS[@]}" "$ROOT/frontend/pnpm-lock.yaml" "opc@$fe_ip:/opt/recipe-app/frontend/pnpm-lock.yaml"
-  scp "${SSH_OPTS[@]}" "$ROOT/infra/deploy/server.mjs" "opc@$fe_ip:/opt/recipe-app/frontend/server.mjs"
-  scp "${SSH_OPTS[@]}" "$ROOT/infra/deploy/recipe-frontend.service" "opc@$fe_ip:/tmp/recipe-frontend.service"
+    "$ROOT/frontend/dist/" "opc@$app_ip:/opt/recipe-app/frontend/dist/"
+  scp "${SSH_OPTS[@]}" "$ROOT/frontend/package.json" "opc@$app_ip:/opt/recipe-app/frontend/package.json"
+  scp "${SSH_OPTS[@]}" "$ROOT/frontend/pnpm-lock.yaml" "opc@$app_ip:/opt/recipe-app/frontend/pnpm-lock.yaml"
+  scp "${SSH_OPTS[@]}" "$ROOT/infra/deploy/server.mjs" "opc@$app_ip:/opt/recipe-app/frontend/server.mjs"
+  scp "${SSH_OPTS[@]}" "$ROOT/infra/deploy/recipe-frontend.service" "opc@$app_ip:/tmp/recipe-frontend.service"
+  scp "${SSH_OPTS[@]}" "$ROOT/infra/deploy/nginx-recipe.conf" "opc@$app_ip:/tmp/recipe.conf"
 
-  sed "s/__API_PRIVATE_IP__/$api_private_ip/" "$ROOT/infra/deploy/nginx-recipe.conf" | \
-    ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'cat > /tmp/recipe.conf'
+  echo "==> install Node.js on app-vm (one package at a time)"
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -'
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'sudo dnf install -y nodejs'
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'sudo dnf install -y nginx'
 
-  echo "==> install Node.js on fe-vm (one package at a time)"
-  ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -'
-  ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'sudo dnf install -y nodejs'
-  ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'sudo dnf install -y nginx'
+  echo "==> install production deps on app-vm"
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'cd /opt/recipe-app/frontend && sudo corepack enable && NODE_OPTIONS=--max-old-space-size=512 pnpm install --prod --frozen-lockfile'
 
-  echo "==> install production deps on fe-vm"
-  ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'cd /opt/recipe-app/frontend && sudo corepack enable && NODE_OPTIONS=--max-old-space-size=512 pnpm install --prod --frozen-lockfile'
-
-  ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'sudo mv /tmp/recipe.conf /etc/nginx/conf.d/recipe.conf && sudo rm -f /etc/nginx/conf.d/default.conf && sudo nginx -t && sudo mv /tmp/recipe-frontend.service /etc/systemd/system/recipe-frontend.service && sudo systemctl daemon-reload && sudo systemctl enable --now recipe-frontend nginx && sudo systemctl restart recipe-frontend nginx'
-  configure_fe_vm "$fe_ip"
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'sudo mv /tmp/recipe.conf /etc/nginx/conf.d/recipe.conf && sudo rm -f /etc/nginx/conf.d/default.conf && sudo nginx -t && sudo mv /tmp/recipe-frontend.service /etc/systemd/system/recipe-frontend.service && sudo systemctl daemon-reload && sudo systemctl enable --now recipe-frontend nginx && sudo systemctl restart recipe-frontend nginx'
 }
 
 deploy_fe_standard() {
-  local fe_ip="$1"
-  local api_private_ip="$2"
+  local app_ip="$1"
 
-  ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'sudo dnf install -y nginx && sudo systemctl enable nginx'
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'sudo dnf install -y nginx && sudo systemctl enable nginx'
 
   rsync -az --delete -e "ssh ${SSH_OPTS[*]}" \
-    "$ROOT/frontend/dist/" "opc@$fe_ip:/opt/recipe-app/frontend/dist/"
+    "$ROOT/frontend/dist/" "opc@$app_ip:/opt/recipe-app/frontend/dist/"
   rsync -az --delete -e "ssh ${SSH_OPTS[*]}" \
-    "$ROOT/frontend/node_modules/" "opc@$fe_ip:/opt/recipe-app/frontend/node_modules/"
-  scp "${SSH_OPTS[@]}" "$ROOT/frontend/package.json" "opc@$fe_ip:/opt/recipe-app/frontend/package.json"
-  scp "${SSH_OPTS[@]}" "$ROOT/infra/deploy/server.mjs" "opc@$fe_ip:/opt/recipe-app/frontend/server.mjs"
-  scp "${SSH_OPTS[@]}" "$ROOT/infra/deploy/recipe-frontend.service" "opc@$fe_ip:/tmp/recipe-frontend.service"
+    "$ROOT/frontend/node_modules/" "opc@$app_ip:/opt/recipe-app/frontend/node_modules/"
+  scp "${SSH_OPTS[@]}" "$ROOT/frontend/package.json" "opc@$app_ip:/opt/recipe-app/frontend/package.json"
+  scp "${SSH_OPTS[@]}" "$ROOT/infra/deploy/server.mjs" "opc@$app_ip:/opt/recipe-app/frontend/server.mjs"
+  scp "${SSH_OPTS[@]}" "$ROOT/infra/deploy/recipe-frontend.service" "opc@$app_ip:/tmp/recipe-frontend.service"
+  scp "${SSH_OPTS[@]}" "$ROOT/infra/deploy/nginx-recipe.conf" "opc@$app_ip:/tmp/recipe.conf"
 
-  sed "s/__API_PRIVATE_IP__/$api_private_ip/" "$ROOT/infra/deploy/nginx-recipe.conf" | \
-    ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'cat > /tmp/recipe.conf'
-
-  ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash - && sudo dnf install -y nodejs'
-  ssh "${SSH_OPTS[@]}" "opc@$fe_ip" 'sudo mkdir -p /opt/recipe-app/frontend && sudo chown -R opc:opc /opt/recipe-app && sudo mv /tmp/recipe.conf /etc/nginx/conf.d/recipe.conf && sudo rm -f /etc/nginx/conf.d/default.conf && sudo nginx -t && sudo mv /tmp/recipe-frontend.service /etc/systemd/system/recipe-frontend.service && sudo systemctl daemon-reload && sudo systemctl enable --now recipe-frontend nginx && sudo systemctl restart recipe-frontend nginx'
-  configure_fe_vm "$fe_ip"
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash - && sudo dnf install -y nodejs'
+  ssh "${SSH_OPTS[@]}" "opc@$app_ip" 'sudo mkdir -p /opt/recipe-app/frontend && sudo chown -R opc:opc /opt/recipe-app && sudo mv /tmp/recipe.conf /etc/nginx/conf.d/recipe.conf && sudo rm -f /etc/nginx/conf.d/default.conf && sudo nginx -t && sudo mv /tmp/recipe-frontend.service /etc/systemd/system/recipe-frontend.service && sudo systemctl daemon-reload && sudo systemctl enable --now recipe-frontend nginx && sudo systemctl restart recipe-frontend nginx'
 }
 
 deploy_fe() {
-  local fe_ip="$1"
-  local api_private_ip="$2"
+  local app_ip="$1"
 
-  echo "==> deploy fe-vm ($fe_ip) proxy -> $api_private_ip"
+  echo "==> deploy frontend on app-vm ($app_ip)"
   if is_micro_shape; then
-    deploy_fe_micro "$fe_ip" "$api_private_ip"
+    deploy_fe_micro "$app_ip"
   else
-    deploy_fe_standard "$fe_ip" "$api_private_ip"
+    deploy_fe_standard "$app_ip"
   fi
 }
 
@@ -185,21 +167,19 @@ main() {
 
   build_artifacts
 
-  local outputs fe_ip api_ip api_private
+  local outputs app_ip
   outputs="$(terraform_outputs)"
-  fe_ip="$(echo "$outputs" | python3 -c 'import json,sys; print(json.load(sys.stdin)["fe_vm_public_ip"]["value"])')"
-  api_ip="$(echo "$outputs" | python3 -c 'import json,sys; print(json.load(sys.stdin)["api_vm_public_ip"]["value"])')"
-  api_private="$(echo "$outputs" | python3 -c 'import json,sys; print(json.load(sys.stdin)["api_vm_private_ip"]["value"])')"
+  app_ip="$(echo "$outputs" | python3 -c 'import json,sys; print(json.load(sys.stdin)["fe_vm_public_ip"]["value"])')"
 
-  [[ -n "$fe_ip" && "$fe_ip" != "null" ]] || { echo "fe_vm_public_ip missing. run terraform apply first."; exit 1; }
-  [[ -n "$api_ip" && "$api_ip" != "null" ]] || { echo "api_vm_public_ip missing. run terraform apply first."; exit 1; }
+  [[ -n "$app_ip" && "$app_ip" != "null" ]] || { echo "fe_vm_public_ip missing. run terraform apply first."; exit 1; }
 
-  deploy_api "$api_ip"
-  deploy_fe "$fe_ip" "$api_private"
+  configure_app_vm "$app_ip"
+  deploy_api "$app_ip"
+  deploy_fe "$app_ip"
 
   echo
-  echo "Deployed: http://$fe_ip/"
-  echo "Health:   curl http://$fe_ip/health"
+  echo "Deployed: http://$app_ip/"
+  echo "Health:   curl http://$app_ip/health"
 }
 
 main "$@"

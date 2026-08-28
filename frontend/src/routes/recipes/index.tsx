@@ -6,12 +6,14 @@ import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { EmptyState } from '#/components/EmptyState'
 import { RecipeListPage } from '#/components/RecipeListPage'
 import { loadRecipeList } from '#/lib/api'
+import { saveCategoriesSession } from '#/lib/categorySession'
 import { parseRecipeSearch } from '#/lib/recipeSearch'
 
 export const Route = createFileRoute('/recipes/')({
   validateSearch: parseRecipeSearch,
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => loadRecipeList(deps),
+  staleTime: 30_000,
   component: RecipesRoute,
   errorComponent: ListError,
 })
@@ -21,6 +23,8 @@ function RecipesRoute() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
   const router = useRouter()
+
+  saveCategoriesSession(data.categories)
 
   return (
     <RecipeListPage

@@ -45,26 +45,11 @@ module "fe_vm" {
   compartment_id      = local.compartment_id
   availability_domain = local.availability_domain
   subnet_id           = module.vcn.subnet_id
-  display_name        = "${var.project_prefix}-fe-vm"
+  display_name        = "${var.project_prefix}-app-vm"
   shape               = var.compute_shape
   image_id            = data.oci_core_images.oracle_linux.images[0].id
   ssh_public_key      = var.ssh_public_key
   nsg_ids             = [oci_core_network_security_group.fe.id]
   ocpus               = var.fe_ocpus
   memory_in_gbs       = var.fe_memory_in_gbs
-}
-
-module "api_vm" {
-  source = "../../modules/compute"
-
-  compartment_id      = local.compartment_id
-  availability_domain = local.availability_domain
-  subnet_id           = module.vcn.subnet_id
-  display_name        = "${var.project_prefix}-api-vm"
-  shape               = var.compute_shape
-  image_id            = data.oci_core_images.oracle_linux.images[0].id
-  ssh_public_key      = var.ssh_public_key
-  nsg_ids             = [oci_core_network_security_group.api.id]
-  ocpus               = var.api_ocpus
-  memory_in_gbs       = var.api_memory_in_gbs
 }

@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 User=opc
 WorkingDirectory=/opt/recipe-app
-Environment=HOST=0.0.0.0
+Environment=HOST=127.0.0.1
 Environment=PORT=8080
 Environment=DATABASE_URL=sqlite:/opt/recipe-app/data/recipe.db
 ExecStart=/opt/recipe-app/recipe-backend

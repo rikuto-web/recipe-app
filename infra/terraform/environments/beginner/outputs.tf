@@ -1,5 +1,5 @@
 output "compute_shape" {
-  description = "Compute shape used for fe-vm and api-vm."
+  description = "Compute shape used for the app VM."
   value       = var.compute_shape
 }
 
@@ -14,23 +14,13 @@ output "vcn_id" {
 }
 
 output "fe_vm_public_ip" {
-  description = "Public IP of fe-vm (nginx + frontend)."
+  description = "Public IP of app-vm (nginx + frontend + backend on localhost)."
   value       = module.fe_vm.public_ip
 }
 
 output "fe_vm_private_ip" {
-  description = "Private IP of fe-vm."
+  description = "Private IP of app-vm."
   value       = module.fe_vm.private_ip
-}
-
-output "api_vm_public_ip" {
-  description = "Public IP of api-vm (SSH admin only; API port 8080 is not exposed to the internet)."
-  value       = module.api_vm.public_ip
-}
-
-output "api_vm_private_ip" {
-  description = "Private IP of api-vm (used by fe-vm nginx proxy)."
-  value       = module.api_vm.private_ip
 }
 
 output "availability_domain" {
