@@ -7,15 +7,14 @@
 
 ## デモ
 
-一覧・詳細・作成・編集・削除までを **1 本の画面録画** にまとめています。
+一覧・詳細・作成・編集・削除までを **1 本の画面録画** にまとめています（GIF は 2 倍速・約 1.5 分）。
 
 <p align="center">
-  <video src="docs/assets/demo.mp4" autoplay loop muted playsinline width="960" poster="docs/assets/demo-poster.jpg">
-    お使いの環境で動画が再生できない場合は <a href="docs/assets/demo.mp4">demo.mp4</a> を直接開いてください。
-  </video>
+  <img src="docs/assets/demo.gif" alt="レシピ管理アプリの操作デモ（一覧・詳細・作成・編集・削除）" width="960">
 </p>
 
-> 元動画（2880×1800 / 約 3 分）を 1280px・15fps に圧縮した MP4（約 1.1 MB）です。GitHub README 上では `<video>` タグで自動再生（ループ・ミュート）します。
+> GitHub README ではリポジトリ内 MP4 を `<video>` で埋め込んでも表示されないため、GIF を使っています。  
+> 高画質版: [demo.mp4](docs/assets/demo.mp4)（約 1.1 MB / 約 3 分）
 
 ## 主な機能
 
